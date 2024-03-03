@@ -118,28 +118,40 @@ testRouter.delete('/:id', async (request, response) => {
 //   return response.status(204).json('document deleted successfully!');
 // });
 
-// testRouter.put('/:id', async (request, response) => {
-//   const { body } = request.body;
+testRouter.put('/:id', async (request, response, next) => {
+  let decodedToken;
+  try {
+    decodedToken = jwt.verify(request.token, process.env.SECRET);
+    if (!decodedToken.id) {
+      return response.status(401).json({ error: 'token invalid' });
+    }
+  } catch (error) {
+    console.log('error->', error);
+    return next(error);
+  }
 
-//   const blogPost = {
-//     title: body.title,
-//     author: body.author,
-//     url: body.url,
-//     likes: body.likes,
-//   };
+  const { body } = request;
 
-//   try {
-//     const updatedBlogpost = await Test.findByIdAndUpdate(
-//       request.params.id,
-//       blogPost,
-//       { new: true },
-//     );
-//     response.json(updatedBlogpost);
-//   } catch (error) {
-//     response.status(400).json(error);
-//     // eslint-disable-next-line no-console
-//     console.log(error);
-//   }
-// });
+  console.log('body->', body);
+
+  const test = {
+    name: body.name,
+    url: body.author,
+    actions: body.url,
+  };
+
+  try {
+    const updatedTest = await Test.findByIdAndUpdate(
+      request.params.id,
+      test,
+      { new: true },
+    );
+    response.json(updatedTest);
+  } catch (error) {
+    response.status(400).json(error);
+    // eslint-disable-next-line no-console
+    console.log(error);
+  }
+});
 
 module.exports = testRouter;
