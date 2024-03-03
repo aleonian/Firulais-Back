@@ -130,19 +130,23 @@ testRouter.put('/:id', async (request, response, next) => {
     return next(error);
   }
 
-  const { body } = request;
+  if (!request.params.id) {
+    return response.status(401).json({ error: 'No test id?' });
+  }
 
-  console.log('body->', body);
+  const objectId = new mongoose.Types.ObjectId(request.params.id);
+
+  const { body } = request;
 
   const test = {
     name: body.name,
-    url: body.author,
-    actions: body.url,
+    url: body.url,
+    actions: body.actions,
   };
 
   try {
     const updatedTest = await Test.findByIdAndUpdate(
-      request.params.id,
+      objectId,
       test,
       { new: true },
     );
