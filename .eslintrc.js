@@ -22,5 +22,8 @@ module.exports = {
     ecmaVersion: 'latest',
   },
   rules: {
+    'no-plusplus': 'off',
+    'no-await-in-loop': 'off',
+    'no-console': 'off',
   },
 };

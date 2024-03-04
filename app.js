@@ -18,16 +18,19 @@ const usersRouter = require('./controllers/users');
 const loginRouter = require('./controllers/login');
 const testsRouter = require('./controllers/tests');
 const indexRouter = require('./controllers/index');
+const resultsRouter = require('./controllers/results');
 
 mongoose.connect(mongoUrl);
 
 app.use(cors());
 app.use(express.json());
+app.use('/login', loginRouter);
 app.use(middleware.tokenExtractor);
+app.use(middleware.userExtractor);
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
-app.use('/login', loginRouter);
 app.use('/tests', testsRouter);
+app.use('/results', resultsRouter);
 app.use(middleware.unknownEndpoint);
 app.use(middleware.errorHandler);
 

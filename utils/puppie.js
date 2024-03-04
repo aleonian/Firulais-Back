@@ -4,6 +4,8 @@ const Queue = require('../models/queue');
 
 const Test = require('../models/test');
 
+const Result = require('../models/result');
+
 const tools = require('./common');
 
 const BROWSER_OPEN_FAIL = 0;
@@ -34,9 +36,7 @@ if (process.env.EXECUTABLE_PATH) {
   pupConfig.executablePath = process.env.EXECUTABLE_PATH;
 }
 
-async function run(jobData) {
-  console.log('jobData->', jobData);
-
+async function goFetch(jobData) {
   try {
     const browser = await puppeteer.launch(pupConfig);
     let responseObject = {};
@@ -86,7 +86,7 @@ async function init() {
 }
 
 function stopQueueMonitor() {
-  console.log("queue monitor ends!");
+  console.log('queue monitor ends!');
   clearInterval(queueTimer);
 }
 
@@ -99,7 +99,18 @@ async function processQueue() {
 
         const nextTest = await Test.findById(nextItem.testId);
 
-        const runResult = await run(nextTest);
+        const runResult = await goFetch(nextTest);
+
+        const newResult = new Result({
+          testId: nextItem.testId,
+          when: Date.now(),
+          outcome: runResult,
+        });
+
+        const saveResult = await newResult.save(newResult);
+
+        console.log('saveResult->', saveResult);
+
         // now delete that item from the queue
 
         await Queue.findByIdAndDelete(nextItem.id);
@@ -115,7 +126,7 @@ async function processQueue() {
 }
 
 function startQueueMonitor() {
-  console.log("queue monitor starts!");
+  console.log('queue monitor starts!');
   queueTimer = setInterval(() => processQueue(), 5000);
 }
 
