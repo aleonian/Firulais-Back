@@ -14,6 +14,8 @@ const errorHandler = (error, request, response, next) => {
     return response.status(400).json({ error: 'expected `username` to be unique' });
   } if (error.name === 'MissingTokenError' && error.message.includes('Bro, you need an auth token to do this.')) {
     return response.status(400).json({ error: error.message });
+  } if (error.name === 'QueueError') {
+    return response.status(500).json({ error: error.message });
   }
 
   return next(error);

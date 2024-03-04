@@ -7,6 +7,15 @@ const jwt = require('jsonwebtoken');
 
 const Test = require('../models/test');
 
+const testTools = require('../utils/puppie');
+
+class QueueError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'QueueError';
+  }
+}
+
 testRouter.get('/', async (request, response) => {
   const tests = await Test.find({});
   response.json(tests);
@@ -34,6 +43,36 @@ testRouter.post('/', async (request, response, next) => {
   try {
     savedTest = await test.save();
     return response.status(201).json(savedTest);
+  } catch (error) {
+    return (next(error));
+  }
+});
+
+testRouter.post('/enqueue', async (request, response, next) => {
+  let decodedToken;
+  try {
+    decodedToken = jwt.verify(request.token, process.env.SECRET);
+    if (!decodedToken.id) {
+      return response.status(401).json({ error: 'token invalid' });
+    }
+  } catch (error) {
+    console.log('error->', error);
+    return next(error);
+  }
+
+  const desiredTest = request.body;
+
+  try {
+    const objectId = new mongoose.Types.ObjectId(desiredTest.id);
+
+    const foundTest = await Test.findById(objectId);
+
+    if (!foundTest) {
+      return response.status(400).json({ error: 'Wrong test id!' });
+    }
+    const enqueueResult = await testTools.enqueue(foundTest);
+    if (!enqueueResult) throw new QueueError('Test not enqued!');
+    return response.status(201).json('Test enqueued!');
   } catch (error) {
     return (next(error));
   }
@@ -70,53 +109,6 @@ testRouter.delete('/:id', async (request, response) => {
 
   return response.status(204).json('document deleted successfully!');
 });
-
-// testRouter.delete('/id:', async (request, response, next) => {
-//   let decodedToken;
-//   try {
-//     decodedToken = jwt.verify(request.token, process.env.SECRET);
-//     if (!decodedToken.id) {
-//       return response.status(401).json({ error: 'token invalid' });
-//     }
-//   } catch (error) {
-//     console.log('error->', error);
-//     return next(error);
-//   }
-
-//   //   const isValidObjectId = mongoose.Types.ObjectId.isValid(request.params.id);
-
-//   //   let objectId;
-
-//   //   if (isValidObjectId) {
-//   //     objectId = new mongoose.Types.ObjectId(request.params.id);
-//   //   } else {
-//   //     // eslint-disable-next-line no-console
-//   //     console.error('Invalid ObjectId format');
-//   //     return response.status(400).end();
-//   //   }
-
-//   //   try {
-//   //     const desiredTest = await Test.findById(objectId);
-
-//   //     if (desiredTest.user.toString() === request.userId) {
-//   //       const deletedDocument = await Test.findByIdAndDelete(objectId);
-
-//   //       if (deletedDocument) {
-//   //         // eslint-disable-next-line no-console
-//   //         console.log('Document deleted successfully:', deletedDocument);
-//   //       } else {
-//   //         // eslint-disable-next-line no-console
-//   //         console.log('Document not found');
-//   //       }
-//   //     } else {
-//   //       return response.status(401).json({ error: 'Documents can only be deleted by owners.' });
-//   //     }
-//   //   } catch (error) {
-//   //     return response.status(401).send(`Error deleting document:${error.message}`);
-//   //   }
-
-//   return response.status(204).json('document deleted successfully!');
-// });
 
 testRouter.put('/:id', async (request, response, next) => {
   let decodedToken;
