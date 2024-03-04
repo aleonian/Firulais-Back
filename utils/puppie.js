@@ -10,6 +10,8 @@ const tools = require('./common');
 
 const BROWSER_OPEN_FAIL = 0;
 
+const GENERAL_EXCEPTION = 1;
+
 let isBusy = false;
 
 let queueLength = 0;
@@ -36,10 +38,37 @@ if (process.env.EXECUTABLE_PATH) {
   pupConfig.executablePath = process.env.EXECUTABLE_PATH;
 }
 
+async function parseAndExecuteCommands(commandsString, page) {
+  const commands = commandsString.split('\n');
+  // eslint-disable-next-line no-restricted-syntax
+  for (const command of commands) {
+    const [action, ...args] = command.trim().split(' ');
+    console.log(`executing: ${action} ${args}`);
+    switch (action) {
+      case 'goto':
+        await page.goto(args[0]);
+        break;
+      case 'click':
+        // Implement click logic here
+        break;
+      case 'type':
+        // Implement type logic here
+        break;
+      case 'wait':
+        await tools.wait(args[0]);
+        break;
+        // Add more commands as needed
+      default:
+        console.log(`Unknown command: ${action}`);
+    }
+  }
+}
+
 async function goFetch(jobData) {
+  let responseObject = {};
+
   try {
     const browser = await puppeteer.launch(pupConfig);
-    let responseObject = {};
 
     if (!browser) {
       responseObject = {
@@ -55,25 +84,21 @@ async function goFetch(jobData) {
     };
     const page = await browser.newPage();
 
-    // page.setDefaultTimeout(10000);
-
-    await page.goto(jobData.url);
-
-    // await page.waitForSelector('[id="nav-menu-item-14795"]');
-
-    // await page.hover('[id="nav-menu-item-14795"]');
-
-    await tools.wait(3000);
-
-    // const menuItem = await page.waitForSelector('[id="nav-menu-item-14797"]', { visible: true });
-
-    // const elementText = await page.$eval('[id="nav-menu-item-14797"]', (element) => element.textContent);
-
+    const { actions } = jobData;
+    if (actions && actions.length > 0) {
+      const { commands } = actions[0];
+      // Pass the 'page' object as an argument to the provided code
+      // eslint-disable-next-line no-eval
+      await parseAndExecuteCommands(commands, page);
+    }
     browser.close();
-
     return responseObject;
   } catch (error) {
     console.log('Error!->', error);
+    responseObject.success = false;
+    responseObject.exitCode = GENERAL_EXCEPTION;
+    responseObject.message = `Exeption: ${error}`;
+    return responseObject;
   }
 }
 
