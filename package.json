@@ -21,6 +21,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.2.0",
     "morgan": "~1.9.1",
+    "node-cron": "^3.0.3",
     "puppeteer": "^22.3.0"
   },
   "devDependencies": {

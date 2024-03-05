@@ -205,11 +205,9 @@ async function init() {
   if (queueLength > 0) startQueueMonitor();
 }
 
-async function enqueue(jobData) {
-  console.log('jobData->', jobData);
-
+async function enqueue(testData) {
   const enqueuedJob = new Queue({
-    testId: jobData.id,
+    testId: testData.id,
   });
 
   try {
@@ -222,9 +220,21 @@ async function enqueue(jobData) {
     return false;
   }
 }
+
+async function enqueueAllTests() {
+  console.log('Enqueing all tests...');
+  const tests = await Test.find({});
+  for (let i = 0; i < tests.length; i++) {
+    try {
+      await enqueue(tests[i]);
+    } catch (error) {
+      console.log('enqueueAllTests() error: ', error);
+    }
+  }
+}
+
 module.exports = {
   enqueue,
-  isBusy,
-  queueLength,
   init,
+  enqueueAllTests,
 };
