@@ -12,11 +12,13 @@ const Result = require('../models/result');
 
 const tools = require('./common');
 
-const BROWSER_OPEN_FAIL = 0;
-const GENERAL_EXCEPTION = 1;
-const CONSOLE_PROBLEMS = 2;
-const PAGE_ERROR = 3;
-const REQUEST_FAILED = 4;
+const GREAT_SUCCESS = 0;
+const BROWSER_OPEN_FAIL = 1;
+const GENERAL_EXCEPTION = 2;
+const CONSOLE_PROBLEMS = 3;
+const PAGE_ERROR = 4;
+const REQUEST_FAILED = 5;
+const BAD_ACTION_COMMAND = 6;
 
 let isBusy = false;
 
@@ -24,14 +26,24 @@ let queueLength = 0;
 
 let queueTimer;
 
-const exitCodeStrings = ['Could not open browser :(!'];
+const exitCodeStrings = [
+  'All went good!',
+  'Could not open browser :(!',
+  'Some problem happened',
+  'Devtools console messages detected',
+  'There has been a pretty bad page error. Check console.',
+  'An http request failed.',
+  'This command failed to execute: ',
+];
 
 const typeStrings = {
-  0: 'BROWSER_OPEN_FAIL',
-  1: 'GENERAL_EXCEPTION',
-  2: 'CONSOLE_PROBLEMS',
-  3: 'PAGE_ERROR',
-  4: 'REQUEST_FAILED',
+  0: 'GREAT_SUCCESS',
+  1: 'BROWSER_OPEN_FAIL',
+  2: 'GENERAL_EXCEPTION',
+  3: 'CONSOLE_PROBLEMS',
+  4: 'PAGE_ERROR',
+  5: 'REQUEST_FAILED',
+  6: 'BAD_ACTION_COMMAND',
 };
 
 const pupConfig = {
@@ -59,17 +71,29 @@ async function parseAndExecuteCommands(commandsString, page) {
       case 'click':
         // Implement click logic here
         break;
-      case 'type':
-        // Implement type logic here
-        break;
       case 'wait':
         await tools.wait(args[0]);
+        break;
+      case 'type':
+        await page.type(args[0], args[1]);
+        break;
+      case 'select':
+        await page.select(args[0], args[1]);
         break;
       // Add more commands as needed
       default:
         console.log(`Unknown command: ${action}`);
+        return {
+          success: false,
+          exitCode: -1,
+          command: action,
+        };
     }
   }
+  return {
+    success: true,
+    exitCode: GREAT_SUCCESS,
+  };
 }
 
 async function goFetch(jobData) {
@@ -89,6 +113,7 @@ async function goFetch(jobData) {
 
     responseObject = {
       success: true,
+      exitCode: GREAT_SUCCESS,
     };
     const page = await browser.newPage();
 
@@ -139,9 +164,21 @@ async function goFetch(jobData) {
       for (let i = 0; i < actions.length; i++) {
         const action = actions[i];
         const { commands } = action;
-        await parseAndExecuteCommands(commands, page);
+        const pAndEResult = await parseAndExecuteCommands(commands, page);
+        console.log('pAndEResult->', pAndEResult);
+        if (pAndEResult.success === false && pAndEResult.exitCode === -1) {
+          console.log('parseAndExecuteCommands failed');
+          responseObject.success = false;
+          if (!responseObject.problems) responseObject.problems = [];
+          responseObject.problems.push({
+            problemType: typeStrings[BAD_ACTION_COMMAND],
+            errorMessage: `${exitCodeStrings[BAD_ACTION_COMMAND]} ${pAndEResult.command}`,
+          });
+          console.log(JSON.stringify(responseObject));
+        }
       }
     }
+    console.log(JSON.stringify(responseObject));
     browser.close();
     return responseObject;
   } catch (error) {
