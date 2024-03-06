@@ -62,12 +62,12 @@ resultsRouter.get('/erase/all', async (request, response, next) => {
   //   return next(error);
   // }
 
-  console.log("/erase/all");
+  console.log('/erase/all');
   try {
     const allResults = await Result.deleteMany({});
 
-    console.log("allResults->", allResults);
-    
+    console.log('allResults->', allResults);
+
     if (!allResults) {
       return response.status(400).json({ error: 'Trouble deleting all results from db' });
     }

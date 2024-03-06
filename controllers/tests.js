@@ -101,7 +101,7 @@ testRouter.get('/enqueue/all', async (request, response, next) => {
       const enqueueResult = await testTools.enqueue(allTests[i]);
       if (!enqueueResult) throw new QueueError('Test not enqued!');
     }
-    return response.status(200).send("All tests enqueued!");
+    return response.status(200).send('All tests enqueued!');
   } catch (error) {
     return (next(error));
   }

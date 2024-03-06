@@ -26,6 +26,8 @@ let queueLength = 0;
 
 let queueTimer;
 
+let responseObject = {};
+
 const exitCodeStrings = [
   'All went good!',
   'Could not open browser :(!',
@@ -57,19 +59,86 @@ const pupConfig = {
 if (process.env.EXECUTABLE_PATH) {
   pupConfig.executablePath = process.env.EXECUTABLE_PATH;
 }
+async function performSelect(action, page, args) {
+  await page.select(args[0], args[1]);
+
+  const selectedOption = await page.$eval(args[0], (select) => select.value);
+
+  if (selectedOption === args[1]) {
+    console.log('Option selected successfully');
+    return true;
+  }
+  console.error('Option selection failed');
+  return {
+    success: false,
+    exitCode: -1,
+    command: `${action} ${args.join(' ')}`,
+  };
+}
+async function performClick(action, page, args) {
+  console.log('action->', action);
+  console.log('page->', page);
+  console.log('args->', args);
+
+  await page.click(args[0]);
+
+  // const checkboxState = await page.evaluate(() => {
+  //   const checkbox = document.querySelector(args[0]);
+  //   return checkbox.checked;
+  // });
+
+  await tools.wait(2000);
+
+  const checkboxState = await page.evaluate(() => {
+    try {
+      const checkbox = document.querySelector(args[0]);
+      if (checkbox) {
+        return checkbox.checked;
+      }
+      throw new Error('Checkbox element not found');
+    } catch (error) {
+      console.error('Error evaluating checkbox state:', error);
+      return false;
+    }
+  });
+
+  if (checkboxState) {
+    console.log('Checkbox selected successfully');
+    return true;
+  }
+  console.error('Option selection failed');
+  return {
+    success: false,
+    exitCode: -1,
+    command: `${action} ${args.join(' ')}`,
+  };
+}
+
+function addProblem(problemType, errorMessage) {
+  responseObject.success = false;
+  if (!responseObject.problems) responseObject.problems = [];
+  responseObject.problems.push({
+    problemType,
+    errorMessage,
+  });
+}
 
 async function parseAndExecuteCommands(commandsString, page) {
   const commands = commandsString.split('\n');
   // eslint-disable-next-line no-restricted-syntax
   for (const command of commands) {
     const [action, ...args] = command.trim().split(' ');
-    console.log(`executing: ${action} ${args}`);
+    console.log(`executing: ${action} ${args.join(' ')}`);
+    let result;
     switch (action) {
       case 'goto':
         await page.goto(args[0]);
         break;
       case 'click':
-        // Implement click logic here
+        result = await performClick(action, page, args);
+        if (result.success === false && result.exitCode === -1) {
+          addProblem(typeStrings[BAD_ACTION_COMMAND], `${exitCodeStrings[BAD_ACTION_COMMAND]} ${result.command}`);
+        }
         break;
       case 'wait':
         await tools.wait(args[0]);
@@ -78,7 +147,10 @@ async function parseAndExecuteCommands(commandsString, page) {
         await page.type(args[0], args[1]);
         break;
       case 'select':
-        await page.select(args[0], args[1]);
+        result = await performSelect(action, page, args);
+        if (result.success === false && result.exitCode === -1) {
+          addProblem(typeStrings[BAD_ACTION_COMMAND], `${exitCodeStrings[BAD_ACTION_COMMAND]} ${result.command}`);
+        }
         break;
       // Add more commands as needed
       default:
@@ -86,7 +158,7 @@ async function parseAndExecuteCommands(commandsString, page) {
         return {
           success: false,
           exitCode: -1,
-          command: action,
+          command,
         };
     }
   }
@@ -97,8 +169,6 @@ async function parseAndExecuteCommands(commandsString, page) {
 }
 
 async function goFetch(jobData) {
-  let responseObject = {};
-
   try {
     const browser = await puppeteer.launch(pupConfig);
 
@@ -126,56 +196,32 @@ async function goFetch(jobData) {
           warn: yellow,
           info: cyan,
         };
-        if (type === 'error') responseObject.success = false;
-        if (!responseObject.problems) responseObject.problems = [];
-        responseObject.problems.push({
-          problemType: typeStrings[CONSOLE_PROBLEMS],
-          errorMessage: message.text(),
-          messageType: type,
-        });
-
+        if (type === 'error') {
+          addProblem(typeStrings[CONSOLE_PROBLEMS], `(${type}) ${message.text()}`);
+        }
         const color = colors[type] || blue;
         console.log(color(`${type} ${message.text()}`));
       })
       .on('pageerror', ({ message }) => {
-        responseObject.success = false;
-        if (!responseObject.problems) responseObject.problems = [];
-        responseObject.problems.push({
-          problemType: typeStrings[PAGE_ERROR],
-          errorMessage: message,
-        });
+        addProblem(typeStrings[PAGE_ERROR], message);
       })
       // .on('response', (response) => console.log(green(`${response.status()} ${response.url()}`)))
       .on('requestfailed', (request) => {
         console.log(magenta(`${request.failure().errorText} ${request.url()}`));
-        responseObject.success = false;
-        if (!responseObject.problems) responseObject.problems = [];
-        responseObject.problems.push({
-          problemType: typeStrings[REQUEST_FAILED],
-          errorMessage: request.failure().errorText,
-        });
+        addProblem(typeStrings[REQUEST_FAILED], request.failure().errorText);
       });
 
     await page.goto(jobData.url);
 
     const { actions } = jobData;
 
+    console.log('Actions->', actions);
+
     if (actions && actions.length > 0) {
       for (let i = 0; i < actions.length; i++) {
         const action = actions[i];
         const { commands } = action;
-        const pAndEResult = await parseAndExecuteCommands(commands, page);
-        console.log('pAndEResult->', pAndEResult);
-        if (pAndEResult.success === false && pAndEResult.exitCode === -1) {
-          console.log('parseAndExecuteCommands failed');
-          responseObject.success = false;
-          if (!responseObject.problems) responseObject.problems = [];
-          responseObject.problems.push({
-            problemType: typeStrings[BAD_ACTION_COMMAND],
-            errorMessage: `${exitCodeStrings[BAD_ACTION_COMMAND]} ${pAndEResult.command}`,
-          });
-          console.log(JSON.stringify(responseObject));
-        }
+        const result = await parseAndExecuteCommands(commands, page);
       }
     }
     console.log(JSON.stringify(responseObject));
@@ -183,9 +229,8 @@ async function goFetch(jobData) {
     return responseObject;
   } catch (error) {
     console.log('Error!->', error);
-    responseObject.success = false;
+    addProblem(typeStrings[GENERAL_EXCEPTION], `Exeption: ${error}`);
     responseObject.exitCode = GENERAL_EXCEPTION;
-    responseObject.message = `Exeption: ${error}`;
     return responseObject;
   }
 }
