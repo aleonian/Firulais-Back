@@ -105,7 +105,7 @@ async function goFetch(jobData) {
         if (!responseObject.problems) responseObject.problems = [];
         responseObject.problems.push({
           problemType: typeStrings[CONSOLE_PROBLEMS],
-          logMessage: message.text(),
+          errorMessage: message.text(),
           messageType: type,
         });
 

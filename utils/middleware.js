@@ -6,6 +6,9 @@ const unknownEndpoint = (request, response) => {
 };
 
 const errorHandler = (error, request, response, next) => {
+  console.log('error.name = ', error.name);
+  console.log('error.message = ', error.message);
+
   if (error.name === 'JsonWebTokenError') {
     return response.status(400).send({ error: `Token error: ${error}` });
   } if (error.name === 'ValidationError') {
@@ -17,7 +20,9 @@ const errorHandler = (error, request, response, next) => {
   } if (error.name === 'QueueError') {
     return response.status(500).json({ error: error.message });
   }
-
+  if (error.name === 'ReferenceError') {
+    return response.status(500).json({ error: error.message });
+  }
   return next(error);
 };
 
