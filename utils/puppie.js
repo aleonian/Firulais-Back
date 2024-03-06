@@ -60,58 +60,110 @@ if (process.env.EXECUTABLE_PATH) {
   pupConfig.executablePath = process.env.EXECUTABLE_PATH;
 }
 async function performSelect(action, page, args) {
-  await page.select(args[0], args[1]);
+  try {
+    await page.waitForSelector(args[0], {
+      timeout: 5000,
+    });
 
-  const selectedOption = await page.$eval(args[0], (select) => select.value);
+    const selector = args[0];
+    const optionValue = args.slice(1).join(' ');
 
-  if (selectedOption === args[1]) {
-    console.log('Option selected successfully');
-    return true;
+    await page.select(selector, optionValue);
+
+    const selectedOption = await page.$eval(selector, (select) => select.value);
+
+    if (selectedOption === optionValue) {
+      console.log('Option selected successfully');
+      return {
+        success: true,
+      };
+    }
+    console.error('Option selection failed');
+    return {
+      success: false,
+      exitCode: -1,
+      command: `${action} ${args.join(' ')}`,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      exitCode: -1,
+      command: `${action} ${args.join(' ')}`,
+    };
   }
-  console.error('Option selection failed');
-  return {
-    success: false,
-    exitCode: -1,
-    command: `${action} ${args.join(' ')}`,
-  };
 }
 async function performClick(action, page, args) {
-  console.log('action->', action);
-  console.log('page->', page);
-  console.log('args->', args);
+  const selector = args.join(' ');
 
-  await page.click(args[0]);
+  console.log('performClick(): selector: ', selector);
 
-  // const checkboxState = await page.evaluate(() => {
-  //   const checkbox = document.querySelector(args[0]);
-  //   return checkbox.checked;
-  // });
+  try {
+    await page.waitForSelector(selector, {
+      timeout: 5000,
+    });
 
-  await tools.wait(2000);
-
-  const checkboxState = await page.evaluate(() => {
-    try {
-      const checkbox = document.querySelector(args[0]);
-      if (checkbox) {
-        return checkbox.checked;
-      }
-      throw new Error('Checkbox element not found');
-    } catch (error) {
-      console.error('Error evaluating checkbox state:', error);
-      return false;
-    }
-  });
-
-  if (checkboxState) {
-    console.log('Checkbox selected successfully');
-    return true;
+    await page.click(selector);
+    return {
+      success: true,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      exitCode: -1,
+      command: `${action} ${args.join(' ')}`,
+    };
   }
-  console.error('Option selection failed');
-  return {
-    success: false,
-    exitCode: -1,
-    command: `${action} ${args.join(' ')}`,
-  };
+}
+async function performEvalClick(action, page, args) {
+  try {
+    const selector = args[0];
+
+    await page.waitForSelector(selector, {
+      timeout: 5000,
+    });
+
+    await page.evaluate((evalSelector) => {
+      const element = document.querySelector(evalSelector);
+      console.log('Element:', element);
+      element.click();
+    }, selector);
+
+    await tools.wait(2000);
+
+    const clickResult = await page.evaluate((evalSelector) => {
+      try {
+        const element = document.querySelector(evalSelector);
+        if (element) {
+          return element.checked;
+        }
+        throw new Error('Checkbox element not found');
+      } catch (error) {
+        console.error('Error evaluating element state:', error);
+        return false;
+      }
+    }, selector);
+
+    if (clickResult) {
+      console.log('performEvalClick: clicked successfully');
+      return {
+        success: true,
+        exitCode: GREAT_SUCCESS,
+      };
+    }
+    console.error('EvalClick check failed');
+    return {
+      success: false,
+      exitCode: -1,
+      command: `${action} ${args.join(' ')}`,
+    };
+  } catch (error) {
+    console.log(`performEvalClick() error: ${error}`);
+    return {
+      success: false,
+      exitCode: -1,
+      command: `${action} ${args.join(' ')}`,
+    };
+  }
 }
 
 function addProblem(problemType, errorMessage) {
@@ -123,6 +175,27 @@ function addProblem(problemType, errorMessage) {
   });
 }
 
+async function performSearch(action, page, args) {
+  try {
+    const searchString = args.join(' ');
+    console.log('searchString->', searchString);
+    await page.waitForSelector('body'); // Wait for the page to load
+    await page.waitForFunction(
+      `document.querySelector("body").innerText.includes("${searchString}")`,
+    );
+    console.log('Text found on the page.');
+    return {
+      success: true,
+    };
+  } catch (error) {
+    console.error('Text not found on the page:', error);
+    return {
+      success: false,
+      exitCode: -1,
+      command: `${action} ${args.join(' ')}`,
+    };
+  }
+}
 async function parseAndExecuteCommands(commandsString, page) {
   const commands = commandsString.split('\n');
   // eslint-disable-next-line no-restricted-syntax
@@ -134,10 +207,33 @@ async function parseAndExecuteCommands(commandsString, page) {
       case 'goto':
         await page.goto(args[0]);
         break;
+
       case 'click':
         result = await performClick(action, page, args);
+        if (result.success === false) {
+          addProblem(
+            typeStrings[BAD_ACTION_COMMAND],
+            `${exitCodeStrings[BAD_ACTION_COMMAND]} ${result.command}`,
+          );
+        }
+        break;
+
+      case 'evalclick':
+        result = await performEvalClick(action, page, args);
         if (result.success === false && result.exitCode === -1) {
-          addProblem(typeStrings[BAD_ACTION_COMMAND], `${exitCodeStrings[BAD_ACTION_COMMAND]} ${result.command}`);
+          addProblem(
+            typeStrings[BAD_ACTION_COMMAND],
+            `${exitCodeStrings[BAD_ACTION_COMMAND]} ${result.command}`,
+          );
+        }
+        break;
+      case 'text-search':
+        result = await performSearch(action, page, args);
+        if (result.success === false && result.exitCode === -1) {
+          addProblem(
+            typeStrings[BAD_ACTION_COMMAND],
+            `${exitCodeStrings[BAD_ACTION_COMMAND]} ${result.command}`,
+          );
         }
         break;
       case 'wait':
@@ -149,7 +245,10 @@ async function parseAndExecuteCommands(commandsString, page) {
       case 'select':
         result = await performSelect(action, page, args);
         if (result.success === false && result.exitCode === -1) {
-          addProblem(typeStrings[BAD_ACTION_COMMAND], `${exitCodeStrings[BAD_ACTION_COMMAND]} ${result.command}`);
+          addProblem(
+            typeStrings[BAD_ACTION_COMMAND],
+            `${exitCodeStrings[BAD_ACTION_COMMAND]} ${result.command}`,
+          );
         }
         break;
       // Add more commands as needed
@@ -197,7 +296,10 @@ async function goFetch(jobData) {
           info: cyan,
         };
         if (type === 'error') {
-          addProblem(typeStrings[CONSOLE_PROBLEMS], `(${type}) ${message.text()}`);
+          addProblem(
+            typeStrings[CONSOLE_PROBLEMS],
+            `(${type}) ${message.text()}`,
+          );
         }
         const color = colors[type] || blue;
         console.log(color(`${type} ${message.text()}`));
