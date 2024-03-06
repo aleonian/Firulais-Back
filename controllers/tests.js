@@ -78,6 +78,59 @@ testRouter.post('/enqueue', async (request, response, next) => {
   }
 });
 
+testRouter.get('/enqueue/all', async (request, response, next) => {
+  let decodedToken;
+  try {
+    decodedToken = jwt.verify(request.token, process.env.SECRET);
+    if (!decodedToken.id) {
+      return response.status(401).json({ error: 'token invalid' });
+    }
+  } catch (error) {
+    console.log('error->', error);
+    return next(error);
+  }
+
+  try {
+    const allTests = await Test.find({});
+
+    if (!allTests) {
+      return response.status(400).json({ error: 'Trouble reading tests from db' });
+    }
+    // eslint-disable-next-line no-unreachable-loop
+    for (let i = 0; i < allTests.length; i++) {
+      const enqueueResult = await testTools.enqueue(allTests[i]);
+      if (!enqueueResult) throw new QueueError('Test not enqued!');
+    }
+    return response.status(200).send("All tests enqueued!");
+  } catch (error) {
+    return (next(error));
+  }
+});
+testRouter.get('/erase/all', async (request, response, next) => {
+  let decodedToken;
+  try {
+    decodedToken = jwt.verify(request.token, process.env.SECRET);
+    if (!decodedToken.id) {
+      return response.status(401).json({ error: 'token invalid' });
+    }
+  } catch (error) {
+    console.log('error->', error);
+    return next(error);
+  }
+
+  try {
+    const allTests = await Test.deleteMany({});
+
+    if (!allTests) {
+      return response.status(400).json({ error: 'Trouble deleting all tests from db' });
+    }
+    // eslint-disable-next-line no-unreachable-loop
+    return response.status(200).send('All tests deleted!');
+  } catch (error) {
+    return (next(error));
+  }
+});
+
 testRouter.delete('/:id', async (request, response) => {
   console.log('request.params.id->', request.params.id);
 

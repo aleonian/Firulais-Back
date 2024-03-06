@@ -50,4 +50,32 @@ resultsRouter.delete('/:id', async (request, response, next) => {
   return response.status(204).json('document deleted successfully!');
 });
 
+resultsRouter.get('/erase/all', async (request, response, next) => {
+  // let decodedToken;
+  // try {
+  //   decodedToken = jwt.verify(request.token, process.env.SECRET);
+  //   if (!decodedToken.id) {
+  //     return response.status(401).json({ error: 'token invalid' });
+  //   }
+  // } catch (error) {
+  //   console.log('error->', error);
+  //   return next(error);
+  // }
+
+  console.log("/erase/all");
+  try {
+    const allResults = await Result.deleteMany({});
+
+    console.log("allResults->", allResults);
+    
+    if (!allResults) {
+      return response.status(400).json({ error: 'Trouble deleting all results from db' });
+    }
+    // eslint-disable-next-line no-unreachable-loop
+    return response.status(200).send('All results deleted!');
+  } catch (error) {
+    return (next(error));
+  }
+});
+
 module.exports = resultsRouter;
