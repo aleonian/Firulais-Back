@@ -18,7 +18,7 @@ const GENERAL_EXCEPTION = 2;
 const CONSOLE_PROBLEMS = 3;
 const PAGE_ERROR = 4;
 const REQUEST_FAILED = 5;
-const BAD_ACTION_COMMAND = 6;
+const BAD_COMMAND = 6;
 
 let isBusy = false;
 
@@ -45,7 +45,7 @@ const typeStrings = {
   3: 'CONSOLE_PROBLEMS',
   4: 'PAGE_ERROR',
   5: 'REQUEST_FAILED',
-  6: 'BAD_ACTION_COMMAND',
+  6: 'BAD_COMMAND',
 };
 
 const pupConfig = {
@@ -82,20 +82,39 @@ async function performSelect(action, page, args) {
     return {
       success: false,
       exitCode: -1,
-      command: `${action} ${args.join(' ')}`,
+
     };
   } catch (error) {
     return {
       success: false,
       exitCode: -1,
-      command: `${action} ${args.join(' ')}`,
+
+    };
+  }
+}
+async function performType(action, page, args) {
+  try {
+    const selector = args[0];
+    const text = args.slice(1).join(' ');
+
+    await page.waitForSelector(selector, {
+      timeout: 5000,
+    });
+
+    await page.type(selector, text);
+
+    return {
+      success: true,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      exitCode: -1,
     };
   }
 }
 async function performClick(action, page, args) {
   const selector = args.join(' ');
-
-  console.log('performClick(): selector: ', selector);
 
   try {
     await page.waitForSelector(selector, {
@@ -110,11 +129,10 @@ async function performClick(action, page, args) {
     return {
       success: false,
       exitCode: -1,
-      command: `${action} ${args.join(' ')}`,
     };
   }
 }
-async function performEvalClick(action, page, args) {
+async function performEvalCheckBoxClick(action, page, args) {
   try {
     const selector = args[0];
 
@@ -144,7 +162,7 @@ async function performEvalClick(action, page, args) {
     }, selector);
 
     if (clickResult) {
-      console.log('performEvalClick: clicked successfully');
+      console.log('performEvalCheckBoxClick: clicked successfully');
       return {
         success: true,
         exitCode: GREAT_SUCCESS,
@@ -154,14 +172,14 @@ async function performEvalClick(action, page, args) {
     return {
       success: false,
       exitCode: -1,
-      command: `${action} ${args.join(' ')}`,
+
     };
   } catch (error) {
-    console.log(`performEvalClick() error: ${error}`);
+    console.log(`performEvalCheckBoxClick() error: ${error}`);
     return {
       success: false,
       exitCode: -1,
-      command: `${action} ${args.join(' ')}`,
+
     };
   }
 }
@@ -192,78 +210,100 @@ async function performSearch(action, page, args) {
     return {
       success: false,
       exitCode: -1,
-      command: `${action} ${args.join(' ')}`,
+
     };
   }
 }
 async function parseAndExecuteCommands(commandsString, page) {
   const commands = commandsString.split('\n');
+  const commandLogs = [];
+
   // eslint-disable-next-line no-restricted-syntax
   for (const command of commands) {
-    const [action, ...args] = command.trim().split(' ');
-    console.log(`executing: ${action} ${args.join(' ')}`);
+    const [instruction, ...args] = command.trim().split(' ');
+
+    console.log(`executing: ${instruction} ${args.join(' ')}`);
+
+    const commandLog = {};
+    commandLog.success = true;
+    commandLog.command = `${instruction} ${args.join(' ')}`;
+
     let result;
-    switch (action) {
+    switch (instruction) {
       case 'goto':
         await page.goto(args[0]);
         break;
 
       case 'click':
-        result = await performClick(action, page, args);
+        result = await performClick(instruction, page, args);
         if (result.success === false) {
+          commandLog.success = false;
           addProblem(
-            typeStrings[BAD_ACTION_COMMAND],
-            `${exitCodeStrings[BAD_ACTION_COMMAND]} ${result.command}`,
+            typeStrings[BAD_COMMAND],
+            `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
           );
         }
+        commandLogs.push(commandLog);
         break;
 
-      case 'evalclick':
-        result = await performEvalClick(action, page, args);
-        if (result.success === false && result.exitCode === -1) {
+      case 'eval-checkbox-click':
+        result = await performEvalCheckBoxClick(instruction, page, args);
+        if (result.success === false) {
+          commandLog.success = false;
           addProblem(
-            typeStrings[BAD_ACTION_COMMAND],
-            `${exitCodeStrings[BAD_ACTION_COMMAND]} ${result.command}`,
+            typeStrings[BAD_COMMAND],
+            `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
           );
         }
+        commandLogs.push(commandLog);
         break;
+
       case 'text-search':
-        result = await performSearch(action, page, args);
-        if (result.success === false && result.exitCode === -1) {
+        result = await performSearch(instruction, page, args);
+        if (result.success === false) {
+          commandLog.success = false;
           addProblem(
-            typeStrings[BAD_ACTION_COMMAND],
-            `${exitCodeStrings[BAD_ACTION_COMMAND]} ${result.command}`,
+            typeStrings[BAD_COMMAND],
+            `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
           );
         }
+        commandLogs.push(commandLog);
         break;
       case 'wait':
         await tools.wait(args[0]);
+        commandLogs.push(commandLog);
         break;
       case 'type':
-        await page.type(args[0], args[1]);
+        result = await performType(instruction, page, args);
+        if (result.success === false) {
+          commandLog.success = false;
+          addProblem(
+            typeStrings[BAD_COMMAND],
+            `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+          );
+        }
+        commandLogs.push(commandLog);
         break;
       case 'select':
-        result = await performSelect(action, page, args);
-        if (result.success === false && result.exitCode === -1) {
+        result = await performSelect(instruction, page, args);
+        if (result.success === false) {
+          commandLog.success = false;
           addProblem(
-            typeStrings[BAD_ACTION_COMMAND],
-            `${exitCodeStrings[BAD_ACTION_COMMAND]} ${result.command}`,
+            typeStrings[BAD_COMMAND],
+            `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
           );
         }
         break;
       // Add more commands as needed
       default:
-        console.log(`Unknown command: ${action}`);
-        return {
-          success: false,
-          exitCode: -1,
-          command,
-        };
+        console.log(`Unknown command: ${instruction}`);
+        commandLog.success = false;
+        commandLogs.push(commandLog);
+        break;
     }
   }
   return {
-    success: true,
-    exitCode: GREAT_SUCCESS,
+    commandLogs,
   };
 }
 
@@ -283,6 +323,7 @@ async function goFetch(jobData) {
     responseObject = {
       success: true,
       exitCode: GREAT_SUCCESS,
+      actions: {},
     };
     const page = await browser.newPage();
 
@@ -323,7 +364,10 @@ async function goFetch(jobData) {
       for (let i = 0; i < actions.length; i++) {
         const action = actions[i];
         const { commands } = action;
-        const result = await parseAndExecuteCommands(commands, page);
+        const commandsLog = await parseAndExecuteCommands(commands, page);
+        console.log('commandsLog->', JSON.stringify(commandsLog));
+        console.log('action.name->', action.name);
+        responseObject.actions[action.name] = commandsLog;
       }
     }
     console.log(JSON.stringify(responseObject));
