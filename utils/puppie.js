@@ -25,8 +25,6 @@ const BAD_COMMAND = 6;
 
 let isBusy = false;
 
-let currentActiveTest = 0;
-
 let queueLength = 0;
 
 let queueTimer;
@@ -237,9 +235,10 @@ async function parseAndExecuteCommands(commandsString, page) {
     switch (instruction) {
       case 'goto':
         await page.goto(args[0]);
+        commandLogs.push(commandLog);
         break;
 
-      case 'click':
+      case 'button-click':
         result = await performClick(instruction, page, args);
         if (result.success === false) {
           commandLog.success = false;
@@ -251,7 +250,7 @@ async function parseAndExecuteCommands(commandsString, page) {
         commandLogs.push(commandLog);
         break;
 
-      case 'eval-checkbox-click':
+      case 'checkbox-click':
         result = await performEvalCheckBoxClick(instruction, page, args);
         if (result.success === false) {
           commandLog.success = false;
@@ -298,6 +297,7 @@ async function parseAndExecuteCommands(commandsString, page) {
             `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
           );
         }
+        commandLogs.push(commandLog);
         break;
       // Add more commands as needed
       default:
@@ -403,21 +403,13 @@ async function processQueue() {
 
         await nextTest.save();
 
-        currentActiveTest = nextTest.id;
-
         websocket.emit(nextTest);
-
-        console.log('processQueue(): currentActiveTest->', currentActiveTest);
 
         const runResult = await goFetch(nextTest);
 
         nextTest.state = false;
 
         websocket.emit(nextTest);
-
-        currentActiveTest = 0;
-
-        console.log('processQueue(): currentActiveTest->', currentActiveTest);
 
         await nextTest.save();
 
@@ -490,6 +482,5 @@ module.exports = {
   enqueue,
   init,
   enqueueAllTests,
-  currentActiveTest,
   isBusy,
 };
