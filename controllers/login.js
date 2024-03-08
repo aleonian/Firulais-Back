@@ -8,31 +8,35 @@ const loginRouter = require('express').Router();
 
 const User = require('../models/user');
 
-loginRouter.post('/', async (request, response) => {
+const commonTools = require('../utils/common');
+
+loginRouter.post('/', async (request, response, next) => {
   const { username, password } = request.body;
 
-  const user = await User.findOne({ username });
+  try {
+    const user = await User.findOne({ username });
 
-  const passwordCorrect = user === null
-    ? false
-    : await bcrypt.compare(password, user.passwordHash);
+    const passwordCorrect = user === null
+      ? false
+      : await bcrypt.compare(password, user.passwordHash);
 
-  if (!(user && passwordCorrect)) {
-    return response.status(401).json({
-      error: 'invalid username or password',
-    });
+    if (!(user && passwordCorrect)) {
+      return next(commonTools.createError('LoginError', 'Bro, your credentials are messed up 😂'));
+    }
+
+    const userForToken = {
+      username: user.username,
+      id: user._id,
+    };
+
+    const token = jwt.sign(userForToken, process.env.SECRET);
+
+    return response
+      .status(200)
+      .send({ token, username: user.username, name: user.name });
+  } catch (error) {
+    next(error);
   }
-
-  const userForToken = {
-    username: user.username,
-    id: user._id,
-  };
-
-  const token = jwt.sign(userForToken, process.env.SECRET);
-
-  return response
-    .status(200)
-    .send({ token, username: user.username, name: user.name });
 });
 
 module.exports = loginRouter;

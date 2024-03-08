@@ -3,11 +3,11 @@ const testRouter = require('express').Router();
 const mongoose = require('mongoose');
 
 // eslint-disable-next-line import/no-extraneous-dependencies
-const jwt = require('jsonwebtoken');
-
 const Test = require('../models/test');
 
 const testTools = require('../utils/puppie');
+
+const commonTools = require('../utils/common');
 
 class QueueError extends Error {
   constructor(message) {
@@ -16,29 +16,50 @@ class QueueError extends Error {
   }
 }
 
-testRouter.get('/', async (request, response) => {
-  const tests = await Test.find({});
-  response.json(tests);
+testRouter.get('/', async (request, response, next) => {
+  try {
+    const tests = await Test.find({});
+    response.json(tests);
+  } catch (error) {
+    next(error);
+  }
 });
 
-testRouter.post('/', async (request, response, next) => {
-  let decodedToken;
+testRouter.get('/active', async (request, response, next) => {
   try {
-    decodedToken = jwt.verify(request.token, process.env.SECRET);
-    if (!decodedToken.id) {
-      return response.status(401).json({ error: 'token invalid' });
-    }
+    const test = await Test.find({ state: true });
+    if (test.length > 0) return response.json(test[0]);
+    return response.json(-1);
   } catch (error) {
-    console.log('error->', error);
-    return next(error);
+    next(error);
   }
+});
 
-  //   const user = await User.findById(decodedToken.id);
+testRouter.get('/:id', async (request, response, next) => {
+  const isValidObjectId = mongoose.Types.ObjectId.isValid(request.params.id);
 
+  let objectId;
+
+  if (isValidObjectId) {
+    objectId = new mongoose.Types.ObjectId(request.params.id);
+  } else {
+    // eslint-disable-next-line no-console
+    console.error('Invalid ObjectId format');
+    throw commonTools.createError('InvalidObjectId', 'Invalid ObjectId format');
+  }
+  try {
+    const test = await Test.find(objectId);
+    response.json(test);
+  } catch (error) {
+    next(error);
+  }
+});
+
+testRouter.post('/add', async (request, response, next) => {
   const newTest = request.body;
 
   const test = new Test(newTest);
-
+  test.state = 0;
   let savedTest;
   try {
     savedTest = await test.save();
@@ -49,17 +70,6 @@ testRouter.post('/', async (request, response, next) => {
 });
 
 testRouter.post('/enqueue', async (request, response, next) => {
-  let decodedToken;
-  try {
-    decodedToken = jwt.verify(request.token, process.env.SECRET);
-    if (!decodedToken.id) {
-      return response.status(401).json({ error: 'token invalid' });
-    }
-  } catch (error) {
-    console.log('error->', error);
-    return next(error);
-  }
-
   const desiredTest = request.body;
 
   try {
@@ -68,7 +78,7 @@ testRouter.post('/enqueue', async (request, response, next) => {
     const foundTest = await Test.findById(objectId);
 
     if (!foundTest) {
-      return response.status(400).json({ error: 'Wrong test id!' });
+      throw commonTools.createError('InputError', 'Wrong test id, bro! Come on, man.');
     }
     const enqueueResult = await testTools.enqueue(foundTest);
     if (!enqueueResult) throw new QueueError('Test not enqued!');
@@ -79,22 +89,11 @@ testRouter.post('/enqueue', async (request, response, next) => {
 });
 
 testRouter.get('/enqueue/all', async (request, response, next) => {
-  let decodedToken;
-  try {
-    decodedToken = jwt.verify(request.token, process.env.SECRET);
-    if (!decodedToken.id) {
-      return response.status(401).json({ error: 'token invalid' });
-    }
-  } catch (error) {
-    console.log('error->', error);
-    return next(error);
-  }
-
   try {
     const allTests = await Test.find({});
 
     if (!allTests) {
-      return response.status(400).json({ error: 'Trouble reading tests from db' });
+      throw commonTools.createError('DbError', 'Trouble reading tests from db');
     }
     // eslint-disable-next-line no-unreachable-loop
     for (let i = 0; i < allTests.length; i++) {
@@ -106,23 +105,13 @@ testRouter.get('/enqueue/all', async (request, response, next) => {
     return (next(error));
   }
 });
-testRouter.get('/erase/all', async (request, response, next) => {
-  let decodedToken;
-  try {
-    decodedToken = jwt.verify(request.token, process.env.SECRET);
-    if (!decodedToken.id) {
-      return response.status(401).json({ error: 'token invalid' });
-    }
-  } catch (error) {
-    console.log('error->', error);
-    return next(error);
-  }
 
+testRouter.get('/erase/all', async (request, response, next) => {
   try {
     const allTests = await Test.deleteMany({});
 
     if (!allTests) {
-      return response.status(400).json({ error: 'Trouble deleting all tests from db' });
+      throw commonTools.createError('DbError', 'Trouble deleting all tests from db');
     }
     // eslint-disable-next-line no-unreachable-loop
     return response.status(200).send('All tests deleted!');
@@ -131,9 +120,7 @@ testRouter.get('/erase/all', async (request, response, next) => {
   }
 });
 
-testRouter.delete('/:id', async (request, response) => {
-  console.log('request.params.id->', request.params.id);
-
+testRouter.delete('/:id', async (request, response, next) => {
   const isValidObjectId = mongoose.Types.ObjectId.isValid(request.params.id);
 
   let objectId;
@@ -143,7 +130,7 @@ testRouter.delete('/:id', async (request, response) => {
   } else {
     // eslint-disable-next-line no-console
     console.error('Invalid ObjectId format');
-    return response.status(400).end();
+    throw commonTools.createError('InvalidObjectId', 'Invalid ObjectId format');
   }
 
   try {
@@ -157,26 +144,16 @@ testRouter.delete('/:id', async (request, response) => {
       console.log('Document not found');
     }
   } catch (error) {
-    return response.status(401).send(`Error deleting document:${error.message}`);
+    console.log(`Error deleting document:${error.message}`);
+    return (next(error));
   }
 
   return response.status(204).json('document deleted successfully!');
 });
 
 testRouter.put('/:id', async (request, response, next) => {
-  let decodedToken;
-  try {
-    decodedToken = jwt.verify(request.token, process.env.SECRET);
-    if (!decodedToken.id) {
-      return response.status(401).json({ error: 'token invalid' });
-    }
-  } catch (error) {
-    console.log('error->', error);
-    return next(error);
-  }
-
   if (!request.params.id) {
-    return response.status(401).json({ error: 'No test id?' });
+    throw commonTools.createError('InputError', 'No test id?');
   }
 
   const objectId = new mongoose.Types.ObjectId(request.params.id);
@@ -197,7 +174,7 @@ testRouter.put('/:id', async (request, response, next) => {
     );
     response.json(updatedTest);
   } catch (error) {
-    response.status(400).json(error);
+    next(error);
     // eslint-disable-next-line no-console
     console.log(error);
   }

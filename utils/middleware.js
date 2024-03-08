@@ -1,6 +1,8 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 const jwt = require('jsonwebtoken');
 
+const commonTools = require('./common');
+
 const unknownEndpoint = (request, response) => {
   response.status(404).send({ error: 'unknown endpoint' });
 };
@@ -16,14 +18,29 @@ const errorHandler = (error, request, response, next) => {
   } if (error.name === 'MongoServerError' && error.message.includes('E11000 duplicate key error')) {
     return response.status(400).json({ error: 'expected `username` to be unique' });
   } if (error.name === 'MissingTokenError' && error.message.includes('Bro, you need an auth token to do this.')) {
-    return response.status(401).json({ error: error.message });
-  } if (error.name === 'InvalidTokenError' && error.message.includes('Bro, your token is invalid.')) {
-    return response.status(401).json({ error: error.message });
+    return response.status(400).json({ error: error.message });
+  } if (error.name === 'InvalidTokenError') {
+    return response.status(400).json({ error: error.message });
   } if (error.name === 'QueueError') {
     return response.status(500).json({ error: error.message });
   }
   if (error.name === 'ReferenceError') {
     return response.status(500).json({ error: error.message });
+  }
+  if (error.name === 'LoginError') {
+    return response.status(401).json({ error: error.message });
+  }
+  if (error.name === 'InvalidObjectId') {
+    return response.status(400).json({ error: error.message });
+  }
+  if (error.name === 'DocumentNotFoundError') {
+    return response.status(400).json({ error: error.message });
+  }
+  if (error.name === 'DbError') {
+    return response.status(400).json({ error: error.message });
+  }
+  if (error.name === 'InputError') {
+    return response.status(400).json({ error: error.message });
   }
   return next(error);
 };
@@ -46,10 +63,7 @@ const tokenExtractor = (request, response, next) => {
 // and sets request.userid obtained from the token
 const userExtractor = (request, response, next) => {
   if (!request.token) {
-    const missingTokenError = new Error('No token?');
-    missingTokenError.name = 'MissingTokenError';
-    missingTokenError.message = 'Bro, you need an auth token to do this.'; // You can add custom properties as well
-    next(missingTokenError);
+    next(commonTools.createError('MissingTokenError', 'Bro, you need an auth token to do this.'));
   }
   const decodedToken = jwt.verify(request.token, process.env.SECRET);
   if (!decodedToken.id) {

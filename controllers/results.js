@@ -4,12 +4,7 @@ const mongoose = require('mongoose');
 
 const Result = require('../models/result');
 
-class DocumentNotFoundERror extends Error {
-  constructor(message) {
-    super(message);
-    this.name = 'DocumentNotFoundERror';
-  }
-}
+const commonTools = require('../utils/common');
 
 resultsRouter.get('/', async (request, response, next) => {
   try {
@@ -21,8 +16,6 @@ resultsRouter.get('/', async (request, response, next) => {
 });
 
 resultsRouter.delete('/:id', async (request, response, next) => {
-  console.log('request.params.id->', request.params.id);
-
   const isValidObjectId = mongoose.Types.ObjectId.isValid(request.params.id);
 
   let objectId;
@@ -32,7 +25,7 @@ resultsRouter.delete('/:id', async (request, response, next) => {
   } else {
     // eslint-disable-next-line no-console
     console.error('Invalid ObjectId format');
-    return response.status(400).send('Invalid ObjectId format');
+    return next(commonTools.createError('InvalidObjectId', 'Invalid ObjectId format'));
   }
 
   try {
@@ -44,7 +37,7 @@ resultsRouter.delete('/:id', async (request, response, next) => {
     } else {
       // eslint-disable-next-line no-console
       console.log('Document not found');
-      throw new DocumentNotFoundERror('That document was not found, bro!');
+      throw commonTools.createError('DocumentNotFoundError', 'Could not find that doc, doc.');
     }
   } catch (error) {
     return next(error);
@@ -55,25 +48,11 @@ resultsRouter.delete('/:id', async (request, response, next) => {
 });
 
 resultsRouter.get('/erase/all', async (request, response, next) => {
-  // let decodedToken;
-  // try {
-  //   decodedToken = jwt.verify(request.token, process.env.SECRET);
-  //   if (!decodedToken.id) {
-  //     return response.status(401).json({ error: 'token invalid' });
-  //   }
-  // } catch (error) {
-  //   console.log('error->', error);
-  //   return next(error);
-  // }
-
-  console.log('/erase/all');
   try {
     const allResults = await Result.deleteMany({});
 
-    console.log('allResults->', allResults);
-
     if (!allResults) {
-      return response.status(400).json({ error: 'Trouble deleting all results from db' });
+      throw commonTools.createError('DbError', 'Trouble deleting all results from db');
     }
     // eslint-disable-next-line no-unreachable-loop
     return response.status(200).send('All results deleted!');

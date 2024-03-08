@@ -22,6 +22,8 @@ const BAD_COMMAND = 6;
 
 let isBusy = false;
 
+let currentActiveTest = 0;
+
 let queueLength = 0;
 
 let queueTimer;
@@ -394,7 +396,23 @@ async function processQueue() {
 
         const nextTest = await Test.findById(nextItem.testId);
 
+        nextTest.state = true;
+
+        await nextTest.save();
+
+        currentActiveTest = nextTest.id;
+
+        console.log('processQueue(): currentActiveTest->', currentActiveTest);
+
         const runResult = await goFetch(nextTest);
+
+        nextTest.state = false;
+
+        currentActiveTest = 0;
+
+        console.log('processQueue(): currentActiveTest->', currentActiveTest);
+
+        await nextTest.save();
 
         const newResult = new Result({
           testId: nextItem.testId,
@@ -465,4 +483,6 @@ module.exports = {
   enqueue,
   init,
   enqueueAllTests,
+  currentActiveTest,
+  isBusy,
 };

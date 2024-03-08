@@ -14,6 +14,9 @@ const testChema = new mongoose.Schema({
     type: Array,
     required: true,
   },
+  state: {
+    type: Boolean,
+  },
 });
 
 testChema.set('toJSON', {

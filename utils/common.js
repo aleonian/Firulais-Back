@@ -2,4 +2,11 @@ function wait(ms) {
   return new Promise((resolve) => { setTimeout(resolve, ms); });
 }
 
-module.exports = { wait };
+function createError(name, errorMessage) {
+  const anError = new Error();
+  anError.name = name;
+  anError.message = errorMessage;
+  return anError;
+}
+
+module.exports = { wait, createError };
