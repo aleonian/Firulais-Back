@@ -2,6 +2,15 @@ const express = require('express');
 
 const app = express();
 
+const http = require('http').createServer();
+
+const io = require('socket.io')(http, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST'],
+  },
+});
+
 // eslint-disable-next-line import/no-extraneous-dependencies
 const cors = require('cors');
 
@@ -9,6 +18,8 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 
 const config = require('./utils/config');
+
+const websocket = require('./utils/websocket');
 
 const middleware = require('./utils/middleware');
 
@@ -35,3 +46,9 @@ app.use(middleware.unknownEndpoint);
 app.use(middleware.errorHandler);
 
 module.exports = app;
+
+io.on('connection', websocket.processIncomingRequest);
+
+http.listen(config.WS_PORT, () => {
+  console.log(`ws running on ${config.WS_PORT}`);
+});

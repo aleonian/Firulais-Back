@@ -12,6 +12,9 @@ const Result = require('../models/result');
 
 const tools = require('./common');
 
+const websocket = require('./websocket');
+
+
 const GREAT_SUCCESS = 0;
 const BROWSER_OPEN_FAIL = 1;
 const GENERAL_EXCEPTION = 2;
@@ -402,11 +405,15 @@ async function processQueue() {
 
         currentActiveTest = nextTest.id;
 
+        websocket.emit(nextTest);
+
         console.log('processQueue(): currentActiveTest->', currentActiveTest);
 
         const runResult = await goFetch(nextTest);
 
         nextTest.state = false;
+
+        websocket.emit(nextTest);
 
         currentActiveTest = 0;
 
