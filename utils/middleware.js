@@ -16,7 +16,9 @@ const errorHandler = (error, request, response, next) => {
   } if (error.name === 'MongoServerError' && error.message.includes('E11000 duplicate key error')) {
     return response.status(400).json({ error: 'expected `username` to be unique' });
   } if (error.name === 'MissingTokenError' && error.message.includes('Bro, you need an auth token to do this.')) {
-    return response.status(400).json({ error: error.message });
+    return response.status(401).json({ error: error.message });
+  } if (error.name === 'InvalidTokenError' && error.message.includes('Bro, your token is invalid.')) {
+    return response.status(401).json({ error: error.message });
   } if (error.name === 'QueueError') {
     return response.status(500).json({ error: error.message });
   }
@@ -40,6 +42,8 @@ const tokenExtractor = (request, response, next) => {
   return next();
 };
 
+// tries to extract the token from the request object
+// and sets request.userid obtained from the token
 const userExtractor = (request, response, next) => {
   if (!request.token) {
     const missingTokenError = new Error('No token?');
@@ -48,6 +52,12 @@ const userExtractor = (request, response, next) => {
     next(missingTokenError);
   }
   const decodedToken = jwt.verify(request.token, process.env.SECRET);
+  if (!decodedToken.id) {
+    const InvalidTokenError = new Error('InvalidTokenError');
+    InvalidTokenError.name = 'MissingTokenError';
+    InvalidTokenError.message = 'Bro, your token seems to be invalid.'; // You can add custom properties as well
+    next(InvalidTokenError);
+  }
   request.userId = decodedToken.id;
   return next();
 };

@@ -25,5 +25,6 @@ module.exports = {
     'no-plusplus': 'off',
     'no-await-in-loop': 'off',
     'no-console': 'off',
+    'consistent-return': 'off',
   },
 };

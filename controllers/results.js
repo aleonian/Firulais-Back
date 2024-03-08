@@ -12,8 +12,12 @@ class DocumentNotFoundERror extends Error {
 }
 
 resultsRouter.get('/', async (request, response, next) => {
-  const results = await Result.find({}).populate('testId');
-  response.json(results);
+  try {
+    const results = await Result.find({}).populate('testId');
+    response.json(results);
+  } catch (error) {
+    next(error);
+  }
 });
 
 resultsRouter.delete('/:id', async (request, response, next) => {

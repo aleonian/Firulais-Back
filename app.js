@@ -24,10 +24,10 @@ mongoose.connect(mongoUrl);
 
 app.use(cors());
 app.use(express.json());
+app.use('/', indexRouter);
 app.use('/login', loginRouter);
 app.use(middleware.tokenExtractor);
 app.use(middleware.userExtractor);
-app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/tests', testsRouter);
 app.use('/results', resultsRouter);
