@@ -203,6 +203,7 @@ async function performSearch(action, page, args) {
     await page.waitForSelector('body'); // Wait for the page to load
     await page.waitForFunction(
       `document.querySelector("body").innerText.includes("${searchString}")`,
+      { timeout: 10000 },
     );
     console.log('Text found on the page.');
     return {
@@ -302,6 +303,10 @@ async function parseAndExecuteCommands(commandsString, page) {
       // Add more commands as needed
       default:
         console.log(`Unknown command: ${instruction}`);
+        addProblem(
+          typeStrings[BAD_COMMAND],
+          `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+        );
         commandLog.success = false;
         commandLogs.push(commandLog);
         break;
