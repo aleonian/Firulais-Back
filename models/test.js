@@ -10,6 +10,12 @@ const testChema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  authUser: {
+    type: String,
+  },
+  authPass: {
+    type: String,
+  },
   actions: {
     type: Array,
     required: true,

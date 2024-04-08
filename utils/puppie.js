@@ -1,4 +1,5 @@
 const puppeteer = require('puppeteer');
+const fs = require('fs');
 
 const {
   blue, cyan, green, magenta, red, yellow,
@@ -13,7 +14,6 @@ const Result = require('../models/result');
 const tools = require('./common');
 
 const websocket = require('./websocket');
-
 
 const GREAT_SUCCESS = 0;
 const BROWSER_OPEN_FAIL = 1;
@@ -62,7 +62,7 @@ const pupConfig = {
 if (process.env.EXECUTABLE_PATH) {
   pupConfig.executablePath = process.env.EXECUTABLE_PATH;
 }
-async function performSelect(action, page, args) {
+async function performSelect(page, args) {
   try {
     await page.waitForSelector(args[0], {
       timeout: 5000,
@@ -95,7 +95,7 @@ async function performSelect(action, page, args) {
     };
   }
 }
-async function performType(action, page, args) {
+async function performType(page, args) {
   try {
     const selector = args[0];
     const text = args.slice(1).join(' ');
@@ -116,7 +116,35 @@ async function performType(action, page, args) {
     };
   }
 }
-async function performClick(action, page, args) {
+async function takeSnapshot(page, jobData) {
+  try {
+
+    const directory = './snapshots';
+
+    // Check if the directory exists
+    if (!fs.existsSync(directory)) {
+      // If it doesn't exist, create it
+      fs.mkdirSync(directory);
+      console.log(`Directory '${directory}' created successfully.`);
+    } else {
+      console.log(`Directory '${directory}' already exists.`);
+    }
+
+    await page.screenshot({ path: `./snapshots/screenshot-${jobData.id}.png` });
+
+    return {
+      success: true,
+    };
+  } catch (error) {
+    console.log("error:", error);
+    return {
+      success: false,
+      exitCode: -1,
+    };
+
+  }
+}
+async function performClick(page, args) {
   const selector = args.join(' ');
 
   try {
@@ -135,7 +163,24 @@ async function performClick(action, page, args) {
     };
   }
 }
-async function performEvalCheckBoxClick(action, page, args) {
+async function performScrollBottom(page) {
+  try {
+    await page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight);
+    });
+
+    return {
+      success: true,
+    };
+  } catch (error) {
+    console.log('performScrollBottom() failed: ', error);
+    return {
+      success: false,
+      exitCode: -1,
+    };
+  }
+}
+async function performEvalCheckBoxClick(page, args) {
   try {
     const selector = args[0];
 
@@ -196,14 +241,14 @@ function addProblem(problemType, errorMessage) {
   });
 }
 
-async function performSearch(action, page, args) {
+async function performSearch(page, args) {
   try {
     const searchString = args.join(' ');
     console.log('searchString->', searchString);
     await page.waitForSelector('body'); // Wait for the page to load
     await page.waitForFunction(
       `document.querySelector("body").innerText.includes("${searchString}")`,
-      { timeout: 10000 },
+      { timeout: 20000 },
     );
     console.log('Text found on the page.');
     return {
@@ -218,7 +263,7 @@ async function performSearch(action, page, args) {
     };
   }
 }
-async function parseAndExecuteCommands(commandsString, page) {
+async function parseAndExecuteCommands(commandsString, page, jobData) {
   const commands = commandsString.split('\n');
   const commandLogs = [];
 
@@ -240,7 +285,31 @@ async function parseAndExecuteCommands(commandsString, page) {
         break;
 
       case 'button-click':
-        result = await performClick(instruction, page, args);
+        result = await performClick(page, args);
+        if (result.success === false) {
+          commandLog.success = false;
+          addProblem(
+            typeStrings[BAD_COMMAND],
+            `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+          );
+        }
+        commandLogs.push(commandLog);
+        break;
+
+      case 'take-pic':
+        result = await takeSnapshot(page, jobData);
+        if (result.success === false) {
+          commandLog.success = false;
+          addProblem(
+            typeStrings[BAD_COMMAND],
+            `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+          );
+        }
+        commandLogs.push(commandLog);
+        break;
+
+      case 'scroll-bottom':
+        result = await performScrollBottom(page);
         if (result.success === false) {
           commandLog.success = false;
           addProblem(
@@ -252,7 +321,7 @@ async function parseAndExecuteCommands(commandsString, page) {
         break;
 
       case 'checkbox-click':
-        result = await performEvalCheckBoxClick(instruction, page, args);
+        result = await performEvalCheckBoxClick(page, args);
         if (result.success === false) {
           commandLog.success = false;
           addProblem(
@@ -264,7 +333,7 @@ async function parseAndExecuteCommands(commandsString, page) {
         break;
 
       case 'text-search':
-        result = await performSearch(instruction, page, args);
+        result = await performSearch(page, args);
         if (result.success === false) {
           commandLog.success = false;
           addProblem(
@@ -279,7 +348,7 @@ async function parseAndExecuteCommands(commandsString, page) {
         commandLogs.push(commandLog);
         break;
       case 'type':
-        result = await performType(instruction, page, args);
+        result = await performType(page, args);
         if (result.success === false) {
           commandLog.success = false;
           addProblem(
@@ -290,7 +359,7 @@ async function parseAndExecuteCommands(commandsString, page) {
         commandLogs.push(commandLog);
         break;
       case 'select':
-        result = await performSelect(instruction, page, args);
+        result = await performSelect(page, args);
         if (result.success === false) {
           commandLog.success = false;
           addProblem(
@@ -353,17 +422,28 @@ async function goFetch(jobData) {
           );
         }
         const color = colors[type] || blue;
-        console.log(color(`${type} ${message.text()}`));
+        console.log(color(`console ${type} ${message.text()}`));
       })
       .on('pageerror', ({ message }) => {
         addProblem(typeStrings[PAGE_ERROR], message);
       })
-      // .on('response', (response) => console.log(green(`${response.status()} ${response.url()}`)))
       .on('requestfailed', (request) => {
-        console.log(magenta(`${request.failure().errorText} ${request.url()}`));
-        addProblem(typeStrings[REQUEST_FAILED], request.failure().errorText);
+        console.log('This request failed->', red(request.url()));
+        console.log('request.failure()->', request.failure());
+        // TODO: should i add this failed requests to results?
+        // if (request.failure() && request.failure().errorText) {
+        //   console.log(magenta(`${request.failure().errorText} ${request.url()}`));
+        //   addProblem(typeStrings[REQUEST_FAILED], request.failure().errorText);
+        // } else {
+        //   addProblem(typeStrings[REQUEST_FAILED], "Unidentified error, but it's kinda bad.");
+        // }
       });
 
+    if (jobData.authUser !== '' && jobData.authPass !== '') {
+      console.log('authUser->', jobData.authUser);
+      console.log('authPass->', jobData.authPass);
+      await page.authenticate({ username: jobData.authUser, password: jobData.authPass });
+    }
     await page.goto(jobData.url);
 
     const { actions } = jobData;
@@ -374,7 +454,7 @@ async function goFetch(jobData) {
       for (let i = 0; i < actions.length; i++) {
         const action = actions[i];
         const { commands } = action;
-        const commandsLog = await parseAndExecuteCommands(commands, page);
+        const commandsLog = await parseAndExecuteCommands(commands, page, jobData);
         console.log('commandsLog->', JSON.stringify(commandsLog));
         console.log('action.name->', action.name);
         responseObject.actions[action.name] = commandsLog;
@@ -425,8 +505,6 @@ async function processQueue() {
         });
 
         const saveResult = await newResult.save(newResult);
-
-        console.log('saveResult->', saveResult);
 
         // now delete that item from the queue
 

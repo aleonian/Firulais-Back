@@ -164,6 +164,8 @@ testRouter.put('/:id', async (request, response, next) => {
     name: body.name,
     url: body.url,
     actions: body.actions,
+    authUser: body.authUser,
+    authPass: body.authPass,
   };
 
   try {
