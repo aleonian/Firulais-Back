@@ -119,7 +119,7 @@ async function performType(page, args) {
 async function takeSnapshot(page, jobData) {
   try {
 
-    const directory = './snapshots';
+    const directory = './public/snapshots';
 
     // Check if the directory exists
     if (!fs.existsSync(directory)) {
@@ -130,10 +130,15 @@ async function takeSnapshot(page, jobData) {
       console.log(`Directory '${directory}' already exists.`);
     }
 
-    await page.screenshot({ path: `./snapshots/screenshot-${jobData.id}.png` });
+    const fileName = `screenshot-${jobData.id}.png`;
+    await page.screenshot({ path: `${directory}/${fileName}` });
 
     return {
       success: true,
+      data: {
+        name: 'snapshot',
+        value: fileName
+      }
     };
   } catch (error) {
     console.log("error:", error);
@@ -265,7 +270,8 @@ async function performSearch(page, args) {
 }
 async function parseAndExecuteCommands(commandsString, page, jobData) {
   const commands = commandsString.split('\n');
-  const commandLogs = [];
+  const paecResult = {};
+  paecResult.commandLogs = [];
 
   // eslint-disable-next-line no-restricted-syntax
   for (const command of commands) {
@@ -281,7 +287,7 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
     switch (instruction) {
       case 'goto':
         await page.goto(args[0]);
-        commandLogs.push(commandLog);
+        paecResult.commandLogs.push(commandLog);
         break;
 
       case 'button-click':
@@ -293,7 +299,7 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
             `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
           );
         }
-        commandLogs.push(commandLog);
+        paecResult.commandLogs.push(commandLog);
         break;
 
       case 'take-pic':
@@ -305,7 +311,9 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
             `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
           );
         }
-        commandLogs.push(commandLog);
+        //some of these commands return data to be saved on the test report for this job
+        if (result.data) commandLog.data = result.data;
+        paecResult.commandLogs.push(commandLog);
         break;
 
       case 'scroll-bottom':
@@ -317,7 +325,7 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
             `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
           );
         }
-        commandLogs.push(commandLog);
+        paecResult.commandLogs.push(commandLog);
         break;
 
       case 'checkbox-click':
@@ -329,7 +337,7 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
             `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
           );
         }
-        commandLogs.push(commandLog);
+        paecResult.commandLogs.push(commandLog);
         break;
 
       case 'text-search':
@@ -341,11 +349,11 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
             `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
           );
         }
-        commandLogs.push(commandLog);
+        paecResult.commandLogs.push(commandLog);
         break;
       case 'wait':
         await tools.wait(args[0]);
-        commandLogs.push(commandLog);
+        paecResult.commandLogs.push(commandLog);
         break;
       case 'type':
         result = await performType(page, args);
@@ -356,7 +364,7 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
             `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
           );
         }
-        commandLogs.push(commandLog);
+        paecResult.commandLogs.push(commandLog);
         break;
       case 'select':
         result = await performSelect(page, args);
@@ -367,7 +375,7 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
             `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
           );
         }
-        commandLogs.push(commandLog);
+        paecResult.commandLogs.push(commandLog);
         break;
       // Add more commands as needed
       default:
@@ -377,13 +385,11 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
           `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
         );
         commandLog.success = false;
-        commandLogs.push(commandLog);
+        paecResult.commandLogs.push(commandLog);
         break;
     }
   }
-  return {
-    commandLogs,
-  };
+  return paecResult;
 }
 
 async function goFetch(jobData) {
@@ -454,10 +460,11 @@ async function goFetch(jobData) {
       for (let i = 0; i < actions.length; i++) {
         const action = actions[i];
         const { commands } = action;
-        const commandsLog = await parseAndExecuteCommands(commands, page, jobData);
-        console.log('commandsLog->', JSON.stringify(commandsLog));
+        const paecResult = await parseAndExecuteCommands(commands, page, jobData);
+        console.log('paecResult->', JSON.stringify(paecResult));
         console.log('action.name->', action.name);
-        responseObject.actions[action.name] = commandsLog;
+        //voy por aqui
+        responseObject.actions[action.name] = paecResult;
       }
     }
     console.log(JSON.stringify(responseObject));

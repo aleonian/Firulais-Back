@@ -35,6 +35,7 @@ mongoose.connect(mongoUrl);
 
 app.use(cors());
 app.use(express.json());
+app.use(express.static('public'));
 app.use('/', indexRouter);
 app.use('/login', loginRouter);
 app.use(middleware.tokenExtractor);
