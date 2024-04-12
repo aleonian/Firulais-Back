@@ -95,6 +95,46 @@ async function performSelect(page, args) {
     };
   }
 }
+async function waitForSelector(page, args) {
+  try {
+    await page.waitForSelector(args[0], {
+      timeout: 30000,
+    })
+    return {
+      success: true,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      exitCode: -1,
+    };
+  }
+}
+async function waitForSelectorInIframe(page, args) {
+  const iframeSelector = args[0];
+
+  const objectSelector = args[1];
+
+  try {
+
+    await page.waitForSelector(iframeSelector);
+
+    const iframeElementHandle = await page.$(iframeSelector);
+
+    const iframeContentFrame = await iframeElementHandle.contentFrame();
+
+    await iframeContentFrame.waitForSelector(objectSelector);
+
+    return {
+      success: true,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      exitCode: -1,
+    };
+  }
+}
 async function performType(page, args) {
   try {
     const selector = args[0];
@@ -268,6 +308,52 @@ async function performSearch(page, args) {
     };
   }
 }
+async function performSearchInIframe(page, args) {
+  try {
+
+    const iframeSelector = args[0];
+
+    const searchString = args.slice(1).join(' ');;
+
+    await page.waitForSelector(iframeSelector);
+
+    const iframeElement = await page.$(iframeSelector);
+
+    const iframeContentFrame = await iframeElement.contentFrame();
+
+    // Execute JavaScript code within the context of the iframe
+    const textExists = await iframeContentFrame.evaluate((searchString) => {
+      // Check if the specified text exists within the iframe
+
+      const textObj = {
+        success: document.body.innerText.includes(searchString),
+        text: document.body.innerText
+      }
+      return textObj;
+
+    }, searchString);
+
+    if (textExists.success) {
+      console.log('Text found on the iframe.');
+      return {
+        success: true,
+      };
+    }
+    else {
+      console.log('Text NOT found on the iframe.');
+      return {
+        success: false,
+      };
+    }
+  } catch (error) {
+    console.error('Text not found on the page:', error);
+    return {
+      success: false,
+      exitCode: -1,
+
+    };
+  }
+}
 async function parseAndExecuteCommands(commandsString, page, jobData) {
   const commands = commandsString.split('\n');
   const paecResult = {};
@@ -351,6 +437,19 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
         }
         paecResult.commandLogs.push(commandLog);
         break;
+
+      case 'iframe-text-search':
+        result = await performSearchInIframe(page, args);
+        if (result.success === false) {
+          commandLog.success = false;
+          addProblem(
+            typeStrings[BAD_COMMAND],
+            `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+          );
+        }
+        paecResult.commandLogs.push(commandLog);
+        break;
+
       case 'wait':
         await tools.wait(args[0]);
         paecResult.commandLogs.push(commandLog);
@@ -366,6 +465,31 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
         }
         paecResult.commandLogs.push(commandLog);
         break;
+
+      case 'wait-for-selector':
+        result = await waitForSelector(page, args);
+        if (result.success === false) {
+          commandLog.success = false;
+          addProblem(
+            typeStrings[BAD_COMMAND],
+            `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+          );
+        }
+        paecResult.commandLogs.push(commandLog);
+        break;
+
+      case 'wait-for-selector-in-iframe':
+        result = await waitForSelectorInIframe(page, args);
+        if (result.success === false) {
+          commandLog.success = false;
+          addProblem(
+            typeStrings[BAD_COMMAND],
+            `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+          );
+        }
+        paecResult.commandLogs.push(commandLog);
+        break;
+
       case 'select':
         result = await performSelect(page, args);
         if (result.success === false) {
