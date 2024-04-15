@@ -234,18 +234,41 @@ async function videoGetDuration(page, jobData) {
 
   }
 }
+async function videoGetCurrentTime(page) {
+  try {
+
+    await page.waitForSelector('video');
+
+    const currentVideoTime = await page.evaluate(() => {
+      const video = document.querySelector('video');
+      return video.currentTime;
+    });
+    return {
+      success: true,
+      data: {
+        name: 'video-current-time',
+        value: currentVideoTime
+      }
+    };
+  } catch (error) {
+    console.log("videoGetCurrentTime error:", error);
+    return {
+      success: false,
+      exitCode: -1,
+    };
+
+  }
+}
 async function videoSetCurentTime(page, args) {
   try {
     let desiredTimeInSeconds;
 
     if (args[0].startsWith('storage')) {
-      const variableName = args[0].substring(args[0].indexOf("-") + 1, args[0].length);
-      console.log("variableName->", variableName);
+      const variableName = getVariableName(args[0]);
       desiredTimeInSeconds = storage[variableName];
     }
-    else desiredTimeInSeconds = args[0];
 
-    console.log("desiredTimeInSeconds->", desiredTimeInSeconds);
+    else desiredTimeInSeconds = args[0];
 
     await page.waitForSelector('video');
 
@@ -270,6 +293,9 @@ async function videoSetCurentTime(page, args) {
     };
 
   }
+}
+function getVariableName(string) {
+  return string.substring(string.indexOf("-") + 1, string.length)
 }
 async function videoPlay(page, jobData) {
   try {
@@ -526,6 +552,21 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
         paecResult.commandLogs.push(commandLog);
         break;
 
+      case 'video-get-current-time':
+        result = await videoGetCurrentTime(page);
+        if (result.success === false) {
+          commandLog.success = false;
+          addProblem(
+            typeStrings[BAD_COMMAND],
+            `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+          );
+        }
+        storage['video-current-time'] = result.data.value;
+        //some of these commands return data to be saved on the test report for this job
+        if (result.data) commandLog.data = result.data;
+        paecResult.commandLogs.push(commandLog);
+        break;
+
       case 'video-set-current-time':
         result = await videoSetCurentTime(page, args);
         if (result.success === false) {
@@ -542,6 +583,20 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
 
       case 'video-play':
         result = await videoPlay(page, jobData);
+        if (result.success === false) {
+          commandLog.success = false;
+          addProblem(
+            typeStrings[BAD_COMMAND],
+            `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+          );
+        }
+        //some of these commands return data to be saved on the test report for this job
+        if (result.data) commandLog.data = result.data;
+        paecResult.commandLogs.push(commandLog);
+        break;
+
+      case 'compare-greater-equal':
+        result = await compareGreaterEqual(page, args);
         if (result.success === false) {
           commandLog.success = false;
           addProblem(
@@ -678,6 +733,45 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
     }
   }
   return paecResult;
+}
+
+async function compareGreaterEqual(page, args) {
+
+  // compare-greater-equal storage-video-current-time storage-video-duration
+
+  try {
+
+    let firstOperand, secondOperand;
+
+    if (args[0].startsWith('storage')) {
+      const variableName = getVariableName(args[0]);
+      firstOperand = storage[variableName];
+    }
+    else firstOperand = args[0];
+
+    if (args[1].startsWith('storage')) {
+      const variableName = getVariableName(args[1]);
+      secondOperand = storage[variableName];
+    }
+    else secondOperand = args[1];
+
+    if (firstOperand >= secondOperand) {
+      return {
+        success: true,
+      };
+    }
+    else {
+      return {
+        success: false,
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      exitCode: -1,
+    };
+  }
+
 }
 
 async function goFetch(jobData) {
