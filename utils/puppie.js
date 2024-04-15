@@ -31,6 +31,8 @@ let queueTimer;
 
 let responseObject = {};
 
+const storage = {};
+
 const exitCodeStrings = [
   'All went good!',
   'Could not open browser :(!',
@@ -100,6 +102,23 @@ async function waitForSelector(page, args) {
     await page.waitForSelector(args[0], {
       timeout: 30000,
     })
+    return {
+      success: true,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      exitCode: -1,
+    };
+  }
+}
+async function waitForSelectorVisible(page, args) {
+  try {
+    await page.waitForSelector(args[0], {
+      timeout: 30000,
+      visible: true,
+    });
+
     return {
       success: true,
     };
@@ -182,6 +201,96 @@ async function takeSnapshot(page, jobData) {
     };
   } catch (error) {
     console.log("error:", error);
+    return {
+      success: false,
+      exitCode: -1,
+    };
+
+  }
+}
+async function videoGetDuration(page, jobData) {
+  try {
+
+    await page.waitForSelector('video');
+
+    // Get the video element handle
+    const videoHandle = await page.$('video');
+
+    const videoDuration = Math.floor(await page.evaluate(video => video.duration, videoHandle));
+
+    return {
+      success: true,
+      data: {
+        name: 'video-duration',
+        value: videoDuration
+      }
+    };
+  } catch (error) {
+    console.log("error:", error);
+    return {
+      success: false,
+      exitCode: -1,
+    };
+
+  }
+}
+async function videoSetCurentTime(page, args) {
+  try {
+    let desiredTimeInSeconds;
+
+    if (args[0].startsWith('storage')) {
+      const variableName = args[0].substring(args[0].indexOf("-") + 1, args[0].length);
+      console.log("variableName->", variableName);
+      desiredTimeInSeconds = storage[variableName];
+    }
+    else desiredTimeInSeconds = args[0];
+
+    console.log("desiredTimeInSeconds->", desiredTimeInSeconds);
+
+    await page.waitForSelector('video');
+
+    await page.evaluate((desiredTime) => {
+      try {
+        const video = document.querySelector('video');
+        video.currentTime = desiredTime;
+      }
+      catch (error) {
+        console.log("Trouble setting video", error);
+      }
+    }, desiredTimeInSeconds);
+
+    return {
+      success: true,
+    };
+  } catch (error) {
+    console.log("videoSetCurentTime error:", error);
+    return {
+      success: false,
+      exitCode: -1,
+    };
+
+  }
+}
+async function videoPlay(page, jobData) {
+  try {
+
+    await page.waitForSelector('video');
+
+    await page.evaluate(() => {
+      try {
+        const video = document.querySelector('video');
+        video.play();
+      }
+      catch (error) {
+        console.log("Trouble playing video", error);
+      }
+    });
+
+    return {
+      success: true,
+    };
+  } catch (error) {
+    console.log("videoPlay error:", error);
     return {
       success: false,
       exitCode: -1,
@@ -402,6 +511,49 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
         paecResult.commandLogs.push(commandLog);
         break;
 
+      case 'video-get-duration':
+        result = await videoGetDuration(page, jobData);
+        if (result.success === false) {
+          commandLog.success = false;
+          addProblem(
+            typeStrings[BAD_COMMAND],
+            `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+          );
+        }
+        storage['video-duration'] = result.data.value;
+        //some of these commands return data to be saved on the test report for this job
+        if (result.data) commandLog.data = result.data;
+        paecResult.commandLogs.push(commandLog);
+        break;
+
+      case 'video-set-current-time':
+        result = await videoSetCurentTime(page, args);
+        if (result.success === false) {
+          commandLog.success = false;
+          addProblem(
+            typeStrings[BAD_COMMAND],
+            `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+          );
+        }
+        //some of these commands return data to be saved on the test report for this job
+        if (result.data) commandLog.data = result.data;
+        paecResult.commandLogs.push(commandLog);
+        break;
+
+      case 'video-play':
+        result = await videoPlay(page, jobData);
+        if (result.success === false) {
+          commandLog.success = false;
+          addProblem(
+            typeStrings[BAD_COMMAND],
+            `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+          );
+        }
+        //some of these commands return data to be saved on the test report for this job
+        if (result.data) commandLog.data = result.data;
+        paecResult.commandLogs.push(commandLog);
+        break;
+
       case 'scroll-bottom':
         result = await performScrollBottom(page);
         if (result.success === false) {
@@ -468,6 +620,18 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
 
       case 'wait-for-selector':
         result = await waitForSelector(page, args);
+        if (result.success === false) {
+          commandLog.success = false;
+          addProblem(
+            typeStrings[BAD_COMMAND],
+            `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+          );
+        }
+        paecResult.commandLogs.push(commandLog);
+        break;
+
+      case 'wait-for-selector-visible':
+        result = await waitForSelectorVisible(page, args);
         if (result.success === false) {
           commandLog.success = false;
           addProblem(
