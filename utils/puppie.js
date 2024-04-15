@@ -208,7 +208,7 @@ async function takeSnapshot(page, jobData) {
 
   }
 }
-async function videoGetDuration(page, jobData) {
+async function getVideoDuration(page, args) {
   try {
 
     await page.waitForSelector('video');
@@ -218,12 +218,12 @@ async function videoGetDuration(page, jobData) {
 
     const videoDuration = Math.floor(await page.evaluate(video => video.duration, videoHandle));
 
+    const dataLabel = args[0];
+
+    storage[dataLabel] = videoDuration;
+
     return {
       success: true,
-      data: {
-        name: 'video-duration',
-        value: videoDuration
-      }
     };
   } catch (error) {
     console.log("error:", error);
@@ -234,24 +234,24 @@ async function videoGetDuration(page, jobData) {
 
   }
 }
-async function videoGetCurrentTime(page) {
+async function getVideoCurrentTime(page, args) {
   try {
 
     await page.waitForSelector('video');
 
+    const dataLabel = args[0];
     const currentVideoTime = await page.evaluate(() => {
       const video = document.querySelector('video');
       return video.currentTime;
     });
+
+    storage[dataLabel] = currentVideoTime;
+
     return {
       success: true,
-      data: {
-        name: 'video-current-time',
-        value: currentVideoTime
-      }
     };
   } catch (error) {
-    console.log("videoGetCurrentTime error:", error);
+    console.log("getVideoCurrentTime error:", error);
     return {
       success: false,
       exitCode: -1,
@@ -259,12 +259,12 @@ async function videoGetCurrentTime(page) {
 
   }
 }
-async function videoSetCurentTime(page, args) {
+async function setVideoCurentTime(page, args) {
   try {
     let desiredTimeInSeconds;
 
-    if (args[0].startsWith('storage')) {
-      const variableName = getVariableName(args[0]);
+    if (args[0].startsWith('var-')) {
+      const variableName = args[0];
       desiredTimeInSeconds = storage[variableName];
     }
 
@@ -286,16 +286,13 @@ async function videoSetCurentTime(page, args) {
       success: true,
     };
   } catch (error) {
-    console.log("videoSetCurentTime error:", error);
+    console.log("setVideoCurentTime error:", error);
     return {
       success: false,
       exitCode: -1,
     };
 
   }
-}
-function getVariableName(string) {
-  return string.substring(string.indexOf("-") + 1, string.length)
 }
 async function videoPlay(page, jobData) {
   try {
@@ -511,8 +508,27 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
         paecResult.commandLogs.push(commandLog);
         break;
 
+      case 'get-current-url':
+        const currentUrl = await page.evaluate(() => window.location.href);
+        const dataLabel = args[0];
+        storage[dataLabel] = currentUrl;
+        paecResult.commandLogs.push(commandLog);
+        break;
+
       case 'button-click':
         result = await performClick(page, args);
+        if (result.success === false) {
+          commandLog.success = false;
+          addProblem(
+            typeStrings[BAD_COMMAND],
+            `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+          );
+        }
+        paecResult.commandLogs.push(commandLog);
+        break;
+
+      case 'detect-redirect':
+        result = await detectRedirect(page, args);
         if (result.success === false) {
           commandLog.success = false;
           addProblem(
@@ -537,8 +553,8 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
         paecResult.commandLogs.push(commandLog);
         break;
 
-      case 'video-get-duration':
-        result = await videoGetDuration(page, jobData);
+      case 'get-video-duration':
+        result = await getVideoDuration(page, args);
         if (result.success === false) {
           commandLog.success = false;
           addProblem(
@@ -546,14 +562,11 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
             `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
           );
         }
-        storage['video-duration'] = result.data.value;
-        //some of these commands return data to be saved on the test report for this job
-        if (result.data) commandLog.data = result.data;
         paecResult.commandLogs.push(commandLog);
         break;
 
-      case 'video-get-current-time':
-        result = await videoGetCurrentTime(page);
+      case 'get-video-current-time':
+        result = await getVideoCurrentTime(page, args);
         if (result.success === false) {
           commandLog.success = false;
           addProblem(
@@ -561,14 +574,11 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
             `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
           );
         }
-        storage['video-current-time'] = result.data.value;
-        //some of these commands return data to be saved on the test report for this job
-        if (result.data) commandLog.data = result.data;
         paecResult.commandLogs.push(commandLog);
         break;
 
-      case 'video-set-current-time':
-        result = await videoSetCurentTime(page, args);
+      case 'set-video-current-time':
+        result = await setVideoCurentTime(page, args);
         if (result.success === false) {
           commandLog.success = false;
           addProblem(
@@ -735,6 +745,25 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
   return paecResult;
 }
 
+// functions
+
+async function detectRedirect(page, args) {
+  try {
+
+    // here i have to set a flag so at the end of gofetch something happens with
+    // t
+
+    return {
+      success: true,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      exitCode: -1,
+    };
+  }
+}
+
 async function compareGreaterEqual(page, args) {
 
   // compare-greater-equal storage-video-current-time storage-video-duration
@@ -743,14 +772,14 @@ async function compareGreaterEqual(page, args) {
 
     let firstOperand, secondOperand;
 
-    if (args[0].startsWith('storage')) {
-      const variableName = getVariableName(args[0]);
+    if (args[0].startsWith('var-')) {
+      const variableName = args[0];
       firstOperand = storage[variableName];
     }
     else firstOperand = args[0];
 
-    if (args[1].startsWith('storage')) {
-      const variableName = getVariableName(args[1]);
+    if (args[1].startsWith('var-')) {
+      const variableName = args[1];
       secondOperand = storage[variableName];
     }
     else secondOperand = args[1];
@@ -776,6 +805,8 @@ async function compareGreaterEqual(page, args) {
 
 async function goFetch(jobData) {
   try {
+    let redirects = [];
+
     const browser = await puppeteer.launch(pupConfig);
 
     if (!browser) {
@@ -793,6 +824,39 @@ async function goFetch(jobData) {
       actions: {},
     };
     const page = await browser.newPage();
+
+    const client = await page.target().createCDPSession();
+    await client.send('Network.enable');
+    await client.on('Network.requestWillBeSent', (e) => {
+      if (e.type !== "Document") {
+        return;
+      }
+      redirects.push(e.documentURL);
+    });
+
+
+    // page.on('request', request => {
+    //   console.log('Request URL:', request.url());
+    //   console.log('request.redirectChain():', request.redirectChain());
+    //   console.log('isNavigationRequest():', request.isNavigationRequest());
+    // });
+
+    // Listen for the 'response' event
+    page.on('response', response => {
+
+      // Check if response status code indicates a redirect
+      if ([301, 302].includes(response.status())) {
+        console.error('Redirect detected!');
+      }
+      // if ((status >= 300) && (status <= 399)) {
+      //   console.log('Redirect from', response.url(), 'to', response.headers()['location'])
+      // }
+      if (response.url() !== response.request().url()) {
+        console.warn('Redirect detected!');
+        console.log('Response URL:', response.url());
+        console.log('Response headers():', response.headers());
+      }
+    });
 
     page
       .on('console', (message) => {
@@ -845,11 +909,11 @@ async function goFetch(jobData) {
         const paecResult = await parseAndExecuteCommands(commands, page, jobData);
         console.log('paecResult->', JSON.stringify(paecResult));
         console.log('action.name->', action.name);
-        //voy por aqui
         responseObject.actions[action.name] = paecResult;
       }
     }
     console.log(JSON.stringify(responseObject));
+    console.error("redirects->", redirects);
     browser.close();
     return responseObject;
   } catch (error) {
@@ -862,6 +926,10 @@ async function goFetch(jobData) {
 function stopQueueMonitor() {
   console.log('queue monitor ends!');
   clearInterval(queueTimer);
+}
+
+function postProcessResults(resultSet) {
+
 }
 
 async function processQueue() {
@@ -879,7 +947,9 @@ async function processQueue() {
 
         websocket.emit(nextTest);
 
-        const runResult = await goFetch(nextTest);
+        const runResults = await goFetch(nextTest);
+
+        // const postProcessedResults = postProcessResults(runResults)
 
         nextTest.state = false;
 
@@ -890,7 +960,7 @@ async function processQueue() {
         const newResult = new Result({
           testId: nextItem.testId,
           when: Date.now(),
-          outcome: runResult,
+          outcome: runResults,
         });
 
         const saveResult = await newResult.save(newResult);
