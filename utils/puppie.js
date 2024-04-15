@@ -619,6 +619,31 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
         paecResult.commandLogs.push(commandLog);
         break;
 
+      case 'compare-equal':
+        result = await compareEqual(args);
+        if (result.success === false) {
+          commandLog.success = false;
+          addProblem(
+            typeStrings[BAD_COMMAND],
+            `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+          );
+        }
+        paecResult.commandLogs.push(commandLog);
+        break;
+
+      case 'compare-not-equal':
+        console.log("case compare-not-equal")
+        result = await compareNotEqual(args);
+        if (result.success === false) {
+          commandLog.success = false;
+          addProblem(
+            typeStrings[BAD_COMMAND],
+            `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+          );
+        }
+        paecResult.commandLogs.push(commandLog);
+        break;
+
       case 'scroll-bottom':
         result = await performScrollBottom(page);
         if (result.success === false) {
@@ -764,7 +789,7 @@ async function detectRedirect(page, args) {
   }
 }
 
-async function compareGreaterEqual(page, args) {
+async function compareGreaterEqual(args) {
 
   // compare-greater-equal storage-video-current-time storage-video-duration
 
@@ -785,6 +810,86 @@ async function compareGreaterEqual(page, args) {
     else secondOperand = args[1];
 
     if (firstOperand >= secondOperand) {
+      return {
+        success: true,
+      };
+    }
+    else {
+      return {
+        success: false,
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      exitCode: -1,
+    };
+  }
+
+}
+async function compareEqual(args) {
+
+  console.log("compareEqual: args->", args)
+  try {
+
+    let firstOperand, secondOperand;
+
+    if (args[0].startsWith('var-')) {
+      const variableName = args[0];
+      firstOperand = storage[variableName];
+    }
+    else firstOperand = args[0];
+
+    if (args[1].startsWith('var-')) {
+      const variableName = args[1];
+      secondOperand = storage[variableName];
+    }
+    else secondOperand = args[1];
+
+    console.log("firstOpernad->", firstOperand);
+    console.log("secondOperand->", secondOperand);
+
+    if (firstOperand === secondOperand) {
+      return {
+        success: true,
+      };
+    }
+    else {
+      return {
+        success: false,
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      exitCode: -1,
+    };
+  }
+
+}
+async function compareNotEqual(args) {
+  console.log("compareNotEqual: args->", args)
+
+  try {
+
+    let firstOperand, secondOperand;
+
+    if (args[0].startsWith('var-')) {
+      const variableName = args[0];
+      firstOperand = storage[variableName];
+    }
+    else firstOperand = args[0];
+
+    if (args[1].startsWith('var-')) {
+      const variableName = args[1];
+      secondOperand = storage[variableName];
+    }
+    else secondOperand = args[1];
+
+    console.log("firstOpernad->", firstOperand);
+    console.log("secondOperand->", secondOperand);
+    
+    if (firstOperand !== secondOperand) {
       return {
         success: true,
       };
