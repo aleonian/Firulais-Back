@@ -789,25 +789,22 @@ async function detectRedirect(page, args) {
   }
 }
 
-async function compareGreaterEqual(args) {
+function getOperand(inputData) {
+  if (inputData.startsWith('var-')) {
+    return storage[inputData];
+  }
+  return inputData;
+}
 
-  // compare-greater-equal storage-video-current-time storage-video-duration
+async function compareGreaterEqual(args) {
 
   try {
 
     let firstOperand, secondOperand;
 
-    if (args[0].startsWith('var-')) {
-      const variableName = args[0];
-      firstOperand = storage[variableName];
-    }
-    else firstOperand = args[0];
-
-    if (args[1].startsWith('var-')) {
-      const variableName = args[1];
-      secondOperand = storage[variableName];
-    }
-    else secondOperand = args[1];
+    firstOperand = getOperand(args[0]);
+    
+    secondOperand = getOperand(args[1]);
 
     if (firstOperand >= secondOperand) {
       return {
@@ -829,25 +826,13 @@ async function compareGreaterEqual(args) {
 }
 async function compareEqual(args) {
 
-  console.log("compareEqual: args->", args)
   try {
 
     let firstOperand, secondOperand;
 
-    if (args[0].startsWith('var-')) {
-      const variableName = args[0];
-      firstOperand = storage[variableName];
-    }
-    else firstOperand = args[0];
+    firstOperand = getOperand(args[0]);
 
-    if (args[1].startsWith('var-')) {
-      const variableName = args[1];
-      secondOperand = storage[variableName];
-    }
-    else secondOperand = args[1];
-
-    console.log("firstOpernad->", firstOperand);
-    console.log("secondOperand->", secondOperand);
+    secondOperand = getOperand(args[1]);
 
     if (firstOperand === secondOperand) {
       return {
@@ -868,27 +853,14 @@ async function compareEqual(args) {
 
 }
 async function compareNotEqual(args) {
-  console.log("compareNotEqual: args->", args)
-
   try {
 
     let firstOperand, secondOperand;
 
-    if (args[0].startsWith('var-')) {
-      const variableName = args[0];
-      firstOperand = storage[variableName];
-    }
-    else firstOperand = args[0];
-
-    if (args[1].startsWith('var-')) {
-      const variableName = args[1];
-      secondOperand = storage[variableName];
-    }
-    else secondOperand = args[1];
-
-    console.log("firstOpernad->", firstOperand);
-    console.log("secondOperand->", secondOperand);
+    firstOperand = getOperand(args[0]);
     
+    secondOperand = getOperand(args[1]);
+
     if (firstOperand !== secondOperand) {
       return {
         success: true,
