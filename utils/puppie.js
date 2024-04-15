@@ -31,6 +31,8 @@ let queueTimer;
 
 let responseObject = {};
 
+let audioStarted = false;
+
 const storage = {};
 
 const exitCodeStrings = [
@@ -486,6 +488,12 @@ async function performSearchInIframe(page, args) {
     };
   }
 }
+function audioPlayerActivity(type) {
+  console.error('audio player activity:', type);
+  console.error('audioStarted:', audioStarted);
+  audioStarted = true;
+}
+
 async function parseAndExecuteCommands(commandsString, page, jobData) {
   const commands = commandsString.split('\n');
   const paecResult = {};
@@ -517,18 +525,6 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
 
       case 'button-click':
         result = await performClick(page, args);
-        if (result.success === false) {
-          commandLog.success = false;
-          addProblem(
-            typeStrings[BAD_COMMAND],
-            `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
-          );
-        }
-        paecResult.commandLogs.push(commandLog);
-        break;
-
-      case 'detect-redirect':
-        result = await detectRedirect(page, args);
         if (result.success === false) {
           commandLog.success = false;
           addProblem(
@@ -588,6 +584,18 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
         }
         //some of these commands return data to be saved on the test report for this job
         if (result.data) commandLog.data = result.data;
+        paecResult.commandLogs.push(commandLog);
+        break;
+
+      case 'hook-audio':
+        result = await hookAudioPlayer(page, audioPlayerActivity);
+        if (result.success === false) {
+          commandLog.success = false;
+          addProblem(
+            typeStrings[BAD_COMMAND],
+            `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+          );
+        }
         paecResult.commandLogs.push(commandLog);
         break;
 
@@ -772,11 +780,40 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
 
 // functions
 
-async function detectRedirect(page, args) {
+async function hookAudioPlayer(page, callback) {
   try {
 
-    // here i have to set a flag so at the end of gofetch something happens with
-    // t
+    console.log("1) callback->", callback);
+
+    const callbackString = callback.toString();
+
+    page.evaluate((callbackString) => {
+      const callback = new Function(`return ${callbackString}`)();
+      console.warn('Gonna add listeners to audio.');
+      console.log("2) callback->", callback);
+      const audioElements = document.querySelectorAll('audio');
+      if (audioElements.length === 0) {
+        console.error('No audio elements found on the page.');
+        return false; // No audio elements found, exit
+      }
+
+      audioElements.forEach(audio => {
+        audio.addEventListener('play', () => {
+          console.warn('Audio playback started');
+          callback('play');
+        });
+        audio.addEventListener('pause', () => {
+          console.warn('Audio playback paused');
+          callback('pause');
+        });
+        audio.addEventListener('ended', () => {
+          console.warn('Audio playback ended');
+          callback('stop');
+        });
+      });
+
+      return true; // Audio elements found and event listeners attached
+    }, callbackString);
 
     return {
       success: true,
@@ -803,7 +840,7 @@ async function compareGreaterEqual(args) {
     let firstOperand, secondOperand;
 
     firstOperand = getOperand(args[0]);
-    
+
     secondOperand = getOperand(args[1]);
 
     if (firstOperand >= secondOperand) {
@@ -858,7 +895,7 @@ async function compareNotEqual(args) {
     let firstOperand, secondOperand;
 
     firstOperand = getOperand(args[0]);
-    
+
     secondOperand = getOperand(args[1]);
 
     if (firstOperand !== secondOperand) {
@@ -882,8 +919,6 @@ async function compareNotEqual(args) {
 
 async function goFetch(jobData) {
   try {
-    let redirects = [];
-
     const browser = await puppeteer.launch(pupConfig);
 
     if (!browser) {
@@ -902,20 +937,15 @@ async function goFetch(jobData) {
     };
     const page = await browser.newPage();
 
-    const client = await page.target().createCDPSession();
-    await client.send('Network.enable');
-    await client.on('Network.requestWillBeSent', (e) => {
-      if (e.type !== "Document") {
-        return;
-      }
-      redirects.push(e.documentURL);
-    });
-
-
-    // page.on('request', request => {
-    //   console.log('Request URL:', request.url());
-    //   console.log('request.redirectChain():', request.redirectChain());
-    //   console.log('isNavigationRequest():', request.isNavigationRequest());
+    // This allegedly detects redirects 
+    // const redirects = [];
+    // const client = await page.target().createCDPSession();
+    // await client.send('Network.enable');
+    // await client.on('Network.requestWillBeSent', (e) => {
+    //   if (e.type !== "Document") {
+    //     return;
+    //   }
+    //   redirects.push(e.documentURL);
     // });
 
     // Listen for the 'response' event
@@ -990,7 +1020,7 @@ async function goFetch(jobData) {
       }
     }
     console.log(JSON.stringify(responseObject));
-    console.error("redirects->", redirects);
+    console.log('audioStarted->', audioStarted);
     browser.close();
     return responseObject;
   } catch (error) {
