@@ -31,8 +31,6 @@ let queueTimer;
 
 let responseObject = {};
 
-let audioStarted = false;
-
 const storage = {};
 
 const exitCodeStrings = [
@@ -323,6 +321,33 @@ async function videoPlay(page, jobData) {
 
   }
 }
+async function audioPlay(page) {
+  try {
+
+    await page.waitForSelector('audio');
+
+    await page.evaluate(() => {
+      try {
+        const audio = document.querySelector('audio');
+        audio.play();
+      }
+      catch (error) {
+        console.log("Trouble playing audio", error);
+      }
+    });
+
+    return {
+      success: true,
+    };
+  } catch (error) {
+    console.log("audioPlay error:", error);
+    return {
+      success: false,
+      exitCode: -1,
+    };
+
+  }
+}
 async function performClick(page, args) {
   const selector = args.join(' ');
 
@@ -488,11 +513,6 @@ async function performSearchInIframe(page, args) {
     };
   }
 }
-function audioPlayerActivity(type) {
-  console.error('audio player activity:', type);
-  console.error('audioStarted:', audioStarted);
-  audioStarted = true;
-}
 
 async function parseAndExecuteCommands(commandsString, page, jobData) {
   const commands = commandsString.split('\n');
@@ -587,8 +607,8 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
         paecResult.commandLogs.push(commandLog);
         break;
 
-      case 'hook-audio':
-        result = await hookAudioPlayer(page, audioPlayerActivity);
+      case 'test-audio-play':
+        result = await hookAudioPlayer(page);
         if (result.success === false) {
           commandLog.success = false;
           addProblem(
@@ -601,6 +621,20 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
 
       case 'video-play':
         result = await videoPlay(page, jobData);
+        if (result.success === false) {
+          commandLog.success = false;
+          addProblem(
+            typeStrings[BAD_COMMAND],
+            `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+          );
+        }
+        //some of these commands return data to be saved on the test report for this job
+        if (result.data) commandLog.data = result.data;
+        paecResult.commandLogs.push(commandLog);
+        break;
+
+      case 'audio-play':
+        result = await audioPlay(page, jobData);
         if (result.success === false) {
           commandLog.success = false;
           addProblem(
@@ -780,43 +814,46 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
 
 // functions
 
-async function hookAudioPlayer(page, callback) {
+async function hookAudioPlayer(page) {
   try {
 
-    console.log("1) callback->", callback);
+    const timeoutPromise = new Promise(resolve => setTimeout(() => {
+      console.log("returning after 15 secs...");
+      resolve(false)
+    }, 15000));
 
-    const callbackString = callback.toString();
-
-    page.evaluate((callbackString) => {
-      const callback = new Function(`return ${callbackString}`)();
-      console.warn('Gonna add listeners to audio.');
-      console.log("2) callback->", callback);
+    const evaluationPromise = page.evaluate(() => {
       const audioElements = document.querySelectorAll('audio');
+
       if (audioElements.length === 0) {
         console.error('No audio elements found on the page.');
-        return false; // No audio elements found, exit
+        return false; // No audio elements found, return false
       }
 
-      audioElements.forEach(audio => {
-        audio.addEventListener('play', () => {
-          console.warn('Audio playback started');
-          callback('play');
-        });
-        audio.addEventListener('pause', () => {
-          console.warn('Audio playback paused');
-          callback('pause');
-        });
-        audio.addEventListener('ended', () => {
-          console.warn('Audio playback ended');
-          callback('stop');
+      return new Promise(resolve => {
+        audioElements.forEach(audio => {
+          audio.addEventListener('play', () => {
+            console.warn('Audio playback started');
+            resolve(true); // Resolve with an object indicating play action
+          });
+          // audio.addEventListener('pause', () => {
+          //   console.warn('Audio playback paused');
+          //   resolve({ action: 'pause' }); // Resolve with an object indicating pause action
+          // });
+          // audio.addEventListener('ended', () => {
+          //   console.warn('Audio playback ended');
+          //   resolve({ action: 'stop' }); // Resolve with an object indicating stop action
+          // });
         });
       });
+    });
 
-      return true; // Audio elements found and event listeners attached
-    }, callbackString);
+    const resultPromise = await Promise.race([timeoutPromise, evaluationPromise]);
+
+    console.log("resultPromise->", resultPromise);
 
     return {
-      success: true,
+      success: resultPromise,
     };
   } catch (error) {
     return {
@@ -1020,7 +1057,6 @@ async function goFetch(jobData) {
       }
     }
     console.log(JSON.stringify(responseObject));
-    console.log('audioStarted->', audioStarted);
     browser.close();
     return responseObject;
   } catch (error) {
