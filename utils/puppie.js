@@ -177,6 +177,30 @@ async function performType(page, args) {
     };
   }
 }
+
+async function getCurrentUrl(page, args) {
+  try {
+    const currentUrl = await page.evaluate(() => window.location.href);
+    const dataLabel = args[0];
+    if (!dataLabel || dataLabel.length < 1) {
+      console.log("getCurrentUrl: You need to provide a variable name.")
+      return {
+        success: false,
+        errorMessage: "You need to provide a variable name."
+      };
+    }
+    storage[dataLabel] = currentUrl;
+    return {
+      success: true,
+    };
+  }
+  catch (error) {
+    console.log("getCurrentUrl error:", error);
+    return {
+      success: false,
+    };
+  }
+}
 async function takeSnapshot(page, jobData) {
   try {
 
@@ -207,7 +231,6 @@ async function takeSnapshot(page, jobData) {
       success: false,
       exitCode: -1,
     };
-
   }
 }
 async function getVideoDuration(page, args) {
@@ -221,6 +244,14 @@ async function getVideoDuration(page, args) {
     const videoDuration = Math.floor(await page.evaluate(video => video.duration, videoHandle));
 
     const dataLabel = args[0];
+
+    if (!dataLabel || dataLabel.length < 1) {
+      console.log("getVideoDuration: You need to provide a variable name.")
+      return {
+        success: false,
+        errorMessage: "You need to provide a variable name."
+      };
+    }
 
     storage[dataLabel] = videoDuration;
 
@@ -242,6 +273,14 @@ async function getVideoCurrentTime(page, args) {
     await page.waitForSelector('video');
 
     const dataLabel = args[0];
+
+    if (!dataLabel || dataLabel.length < 1) {
+      console.log("getVideoCurrentTime: You need to provide a variable name.")
+      return {
+        success: false,
+        errorMessage: "You need to provide a variable name."
+      };
+    }
     const currentVideoTime = await page.evaluate(() => {
       const video = document.querySelector('video');
       return video.currentTime;
@@ -258,7 +297,6 @@ async function getVideoCurrentTime(page, args) {
       success: false,
       exitCode: -1,
     };
-
   }
 }
 async function setVideoCurentTime(page, args) {
@@ -447,6 +485,50 @@ function addProblem(problemType, errorMessage) {
   });
 }
 
+async function getTextContent(page, args) {
+  try {
+    const selector = args[0];
+    const variableName = args[1];
+
+    if (!selector || selector.length < 1) {
+      console.log("getTextContent: You need to provide a variable name.")
+      return {
+        success: false,
+        errorMessage: "You need to provide a variable name."
+      };
+    }
+
+    if (!variableName || variableName.length < 1) {
+      console.log("getTextContent: You need to provide a variable name.")
+      return {
+        success: false,
+        errorMessage: "You need to provide a variable name."
+      };
+    }
+
+    console.log('selector->', selector);
+    console.log('variableName->', variableName);
+
+    let desiredElement = await page.waitForSelector(selector);
+
+    const textContent = await desiredElement.evaluate(element => {
+      return element.textContent.trim();
+    });
+
+    storage[variableName] = textContent;
+
+    return {
+      success: true,
+    };
+  } catch (error) {
+    console.error('Text not found on the page:', error);
+    return {
+      success: false,
+      exitCode: -1,
+
+    };
+  }
+}
 async function performSearch(page, args) {
   try {
     const searchString = args.join(' ');
@@ -591,9 +673,14 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
         break;
 
       case 'get-current-url':
-        const currentUrl = await page.evaluate(() => window.location.href);
-        const dataLabel = args[0];
-        storage[dataLabel] = currentUrl;
+        result = await getCurrentUrl(page, args);
+        if (result.success === false) {
+          commandLog.success = false;
+          addProblem(
+            typeStrings[BAD_COMMAND],
+            `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+          );
+        }
         paecResult.commandLogs.push(commandLog);
         break;
 
@@ -702,7 +789,7 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
         break;
 
       case 'compare-greater-equal':
-        result = await compareGreaterEqual(page, args);
+        result = await compareGreaterEqual(args);
         if (result.success === false) {
           commandLog.success = false;
           addProblem(
@@ -787,6 +874,18 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
         paecResult.commandLogs.push(commandLog);
         break;
 
+      case 'get-text-content':
+        result = await getTextContent(page, args);
+        if (result.success === false) {
+          commandLog.success = false;
+          addProblem(
+            typeStrings[BAD_COMMAND],
+            `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+          );
+        }
+        paecResult.commandLogs.push(commandLog);
+        break;
+
       case 'text-find':
         result = await performSearch(page, args);
         if (result.success === false) {
@@ -815,6 +914,7 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
         await tools.wait(args[0]);
         paecResult.commandLogs.push(commandLog);
         break;
+
       case 'type':
         result = await performType(page, args);
         if (result.success === false) {
@@ -952,11 +1052,16 @@ async function compareGreaterEqual(args) {
 
   try {
 
+    console.log("compareGreaterEqual->", args);
+
     let firstOperand, secondOperand;
 
     firstOperand = getOperand(args[0]);
 
     secondOperand = getOperand(args[1]);
+
+    console.log("firstOperand->", firstOperand);
+    console.log("secondOperand->", secondOperand);
 
     if (firstOperand >= secondOperand) {
       return {
