@@ -87,14 +87,10 @@ async function performSelect(page, args) {
     console.error('Option selection failed');
     return {
       success: false,
-      exitCode: -1,
-
     };
   } catch (error) {
     return {
       success: false,
-      exitCode: -1,
-
     };
   }
 }
@@ -110,7 +106,6 @@ async function waitForSelector(page, args) {
   } catch (error) {
     return {
       success: false,
-      exitCode: -1,
     };
   }
 }
@@ -127,7 +122,6 @@ async function waitForSelectorVisible(page, args) {
   } catch (error) {
     return {
       success: false,
-      exitCode: -1,
     };
   }
 }
@@ -152,7 +146,6 @@ async function waitForSelectorInIframe(page, args) {
   } catch (error) {
     return {
       success: false,
-      exitCode: -1,
     };
   }
 }
@@ -173,7 +166,6 @@ async function performType(page, args) {
   } catch (error) {
     return {
       success: false,
-      exitCode: -1,
     };
   }
 }
@@ -229,7 +221,6 @@ async function takeSnapshot(page, jobData) {
     console.log("error:", error);
     return {
       success: false,
-      exitCode: -1,
     };
   }
 }
@@ -262,7 +253,6 @@ async function getVideoDuration(page, args) {
     console.log("error:", error);
     return {
       success: false,
-      exitCode: -1,
     };
 
   }
@@ -295,7 +285,6 @@ async function getVideoCurrentTime(page, args) {
     console.log("getVideoCurrentTime error:", error);
     return {
       success: false,
-      exitCode: -1,
     };
   }
 }
@@ -329,9 +318,7 @@ async function setVideoCurentTime(page, args) {
     console.log("setVideoCurentTime error:", error);
     return {
       success: false,
-      exitCode: -1,
     };
-
   }
 }
 async function videoPlay(page, jobData) {
@@ -356,9 +343,7 @@ async function videoPlay(page, jobData) {
     console.log("videoPlay error:", error);
     return {
       success: false,
-      exitCode: -1,
     };
-
   }
 }
 async function audioPlay(page) {
@@ -383,9 +368,7 @@ async function audioPlay(page) {
     console.log("audioPlay error:", error);
     return {
       success: false,
-      exitCode: -1,
     };
-
   }
 }
 async function performClick(page, args) {
@@ -403,7 +386,6 @@ async function performClick(page, args) {
   } catch (error) {
     return {
       success: false,
-      exitCode: -1,
     };
   }
 }
@@ -420,7 +402,6 @@ async function performScrollBottom(page) {
     console.log('performScrollBottom() failed: ', error);
     return {
       success: false,
-      exitCode: -1,
     };
   }
 }
@@ -463,14 +444,12 @@ async function performEvalCheckBoxClick(page, args) {
     console.error('EvalClick check failed');
     return {
       success: false,
-      exitCode: -1,
-
     };
   } catch (error) {
     console.log(`performEvalCheckBoxClick() error: ${error}`);
     return {
       success: false,
-      exitCode: -1,
+
 
     };
   }
@@ -487,8 +466,16 @@ function addProblem(problemType, errorMessage) {
 
 async function getTextContent(page, args) {
   try {
-    const selector = args[0];
-    const variableName = args[1];
+
+    console.log('getTextContent');
+    console.log('args->', args);
+
+    const variableName = args[0];
+
+    const selector = args.slice(1).join(' ');
+
+    console.log('selector->', selector);
+    console.log('variableName->', variableName);
 
     if (!selector || selector.length < 1) {
       console.log("getTextContent: You need to provide a variable name.")
@@ -506,15 +493,13 @@ async function getTextContent(page, args) {
       };
     }
 
-    console.log('selector->', selector);
-    console.log('variableName->', variableName);
-
     let desiredElement = await page.waitForSelector(selector);
 
     const textContent = await desiredElement.evaluate(element => {
       return element.textContent.trim();
     });
 
+    console.log("textContent->", textContent, " will be saved to ", `storage[${variableName}]`);
     storage[variableName] = textContent;
 
     return {
@@ -524,8 +509,47 @@ async function getTextContent(page, args) {
     console.error('Text not found on the page:', error);
     return {
       success: false,
-      exitCode: -1,
+    };
+  }
+}
+async function getLinkHref(page, args) {
+  try {
 
+    const variableName = args[0];
+
+    const selector = args.slice(1).join(' ');
+
+    if (!selector || selector.length < 1) {
+      console.log("getLinkHref: You need to provide a variable name.")
+      return {
+        success: false,
+        errorMessage: "You need to provide a selector."
+      };
+    }
+
+    if (!variableName || variableName.length < 1) {
+      console.log("getLinkHref: You need to provide a variable name.")
+      return {
+        success: false,
+        errorMessage: "You need to provide a variable name."
+      };
+    }
+
+    let desiredElement = await page.waitForSelector(selector);
+
+    const href = await desiredElement.evaluate(element => {
+      return element.getAttribute('href');
+    });
+
+    storage[variableName] = href;
+
+    return {
+      success: true,
+    };
+  } catch (error) {
+    console.error('Text not found on the page:', error);
+    return {
+      success: false,
     };
   }
 }
@@ -546,8 +570,39 @@ async function performSearch(page, args) {
     console.error('Text not found on the page:', error);
     return {
       success: false,
-      exitCode: -1,
+    };
+  }
+}
+async function saveDataInVariable(args) {
+  try {
+    const variableName = args[0];
+    const data = args.slice(1).join(' ');
 
+    if (!variableName || variableName.length < 1) {
+      console.log("saveDataInVariable: You need to provide a variable name.")
+      return {
+        success: false,
+        errorMessage: "You need to provide a variable name."
+      };
+    }
+
+    if (!data || data.length < 1) {
+      console.log("saveDataInVariable: You need to provide data.")
+      return {
+        success: false,
+        errorMessage: "You need to provide data."
+      };
+    }
+
+    storage[variableName] = data;
+
+    return {
+      success: true,
+    };
+  } catch (error) {
+    console.error('Text not found on the page:', error);
+    return {
+      success: false,
     };
   }
 }
@@ -562,7 +617,6 @@ async function performNegativeSearch(page, args) {
     console.log('Text found on the page.');
     return {
       success: false,
-      exitCode: -1,
     };
   } catch (error) {
     console.error('Text not found on the page (great success):', error);
@@ -576,7 +630,7 @@ async function performSearchInIframe(page, args) {
 
     const iframeSelector = args[0];
 
-    const searchString = args.slice(1).join(' ');;
+    const searchString = args.slice(1).join(' ');
 
     await page.waitForSelector(iframeSelector);
 
@@ -612,8 +666,6 @@ async function performSearchInIframe(page, args) {
     console.error('Text not found on the page:', error);
     return {
       success: false,
-      exitCode: -1,
-
     };
   }
 }
@@ -644,7 +696,6 @@ async function clearInput(page, args) {
     console.error('clearInput error:', error);
     return {
       success: false,
-      exitCode: -1,
     };
   }
 }
@@ -658,7 +709,7 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
   for (const command of commands) {
     // const [instruction, ...args] = command.trim().split(' ');
     const [instruction, ...args] = command.trim().split(/\s+/);
-
+    if (!instruction || instruction.length < 1 || instruction.startsWith("//")) continue;
     console.log(`executing: ${instruction} ${args.join(' ')}`);
 
     const commandLog = {};
@@ -815,7 +866,6 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
         break;
 
       case 'compare-not-equal':
-        console.log("case compare-not-equal")
         result = await compareNotEqual(args);
         if (result.success === false) {
           commandLog.success = false;
@@ -874,8 +924,32 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
         paecResult.commandLogs.push(commandLog);
         break;
 
+      case 'save-data-in-variable':
+        result = await saveDataInVariable(args);
+        if (result.success === false) {
+          commandLog.success = false;
+          addProblem(
+            typeStrings[BAD_COMMAND],
+            `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+          );
+        }
+        paecResult.commandLogs.push(commandLog);
+        break;
+
       case 'get-text-content':
         result = await getTextContent(page, args);
+        if (result.success === false) {
+          commandLog.success = false;
+          addProblem(
+            typeStrings[BAD_COMMAND],
+            `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+          );
+        }
+        paecResult.commandLogs.push(commandLog);
+        break;
+
+      case 'get-link-href':
+        result = await getLinkHref(page, args);
         if (result.success === false) {
           commandLog.success = false;
           addProblem(
@@ -1036,7 +1110,6 @@ async function hookAudioPlayer(page) {
   } catch (error) {
     return {
       success: false,
-      exitCode: -1,
     };
   }
 }
@@ -1052,16 +1125,11 @@ async function compareGreaterEqual(args) {
 
   try {
 
-    console.log("compareGreaterEqual->", args);
-
     let firstOperand, secondOperand;
 
     firstOperand = getOperand(args[0]);
 
     secondOperand = getOperand(args[1]);
-
-    console.log("firstOperand->", firstOperand);
-    console.log("secondOperand->", secondOperand);
 
     if (firstOperand >= secondOperand) {
       return {
@@ -1076,7 +1144,6 @@ async function compareGreaterEqual(args) {
   } catch (error) {
     return {
       success: false,
-      exitCode: -1,
     };
   }
 
@@ -1091,6 +1158,10 @@ async function compareEqual(args) {
 
     secondOperand = getOperand(args[1]);
 
+    console.log("compareEqual:");
+    console.log("firstOperand->", firstOperand);
+    console.log("secondOperand->", secondOperand);
+
     if (firstOperand === secondOperand) {
       return {
         success: true,
@@ -1104,7 +1175,6 @@ async function compareEqual(args) {
   } catch (error) {
     return {
       success: false,
-      exitCode: -1,
     };
   }
 
@@ -1131,10 +1201,8 @@ async function compareNotEqual(args) {
   } catch (error) {
     return {
       success: false,
-      exitCode: -1,
     };
   }
-
 }
 
 async function goFetch(jobData) {
@@ -1218,12 +1286,14 @@ async function goFetch(jobData) {
         // }
       });
 
-    if (jobData.authUser !== '' && jobData.authPass !== '') {
+    if (jobData.authUser && jobData.authUser !== '' && jobData.authPass && jobData.authPass !== '') {
       console.log('authUser->', jobData.authUser);
       console.log('authPass->', jobData.authPass);
       await page.authenticate({ username: jobData.authUser, password: jobData.authPass });
     }
-    await page.goto(jobData.url);
+    console.log(`page.goto(${jobData.url});`);
+
+    await page.goto(jobData.url, { timeout: 60000 });
 
     const { actions } = jobData;
 
@@ -1252,10 +1322,6 @@ async function goFetch(jobData) {
 function stopQueueMonitor() {
   console.log('queue monitor ends!');
   clearInterval(queueTimer);
-}
-
-function postProcessResults(resultSet) {
-
 }
 
 async function processQueue() {
