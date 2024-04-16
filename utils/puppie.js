@@ -574,7 +574,8 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
 
   // eslint-disable-next-line no-restricted-syntax
   for (const command of commands) {
-    const [instruction, ...args] = command.trim().split(' ');
+    // const [instruction, ...args] = command.trim().split(' ');
+    const [instruction, ...args] = command.trim().split(/\s+/);
 
     console.log(`executing: ${instruction} ${args.join(' ')}`);
 
