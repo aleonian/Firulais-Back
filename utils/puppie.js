@@ -100,7 +100,9 @@ async function performSelect(page, args) {
 }
 async function waitForSelector(page, args) {
   try {
-    await page.waitForSelector(args[0], {
+    const desiredSelector = args[0];
+    console.log("desiredSelector->", desiredSelector);
+    await page.waitForSelector(desiredSelector, {
       timeout: 30000,
     })
     return {
@@ -827,6 +829,7 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
 
       case 'wait-for-selector':
         result = await waitForSelector(page, args);
+        console.log("wait-for-selector result->", result)
         if (result.success === false) {
           commandLog.success = false;
           addProblem(
