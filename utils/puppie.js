@@ -14,6 +14,7 @@ const Result = require('../models/result');
 const tools = require('./common');
 
 const websocket = require('./websocket');
+const { timeout } = require('puppeteer');
 
 const GREAT_SUCCESS = 0;
 const BROWSER_OPEN_FAIL = 1;
@@ -467,6 +468,26 @@ async function performSearch(page, args) {
     };
   }
 }
+async function performNegativeSearch(page, args) {
+  try {
+    const searchString = args.join(' ');
+    await page.waitForSelector('body', { timeout: 10000 }); // Wait for the page to load
+    await page.waitForFunction(
+      `document.querySelector("body").innerText.includes("${searchString}")`,
+      { timeout: 10000 },
+    );
+    console.log('Text found on the page.');
+    return {
+      success: false,
+      exitCode: -1,
+    };
+  } catch (error) {
+    console.error('Text not found on the page (great success):', error);
+    return {
+      success: true,
+    };
+  }
+}
 async function performSearchInIframe(page, args) {
   try {
 
@@ -510,6 +531,37 @@ async function performSearchInIframe(page, args) {
       success: false,
       exitCode: -1,
 
+    };
+  }
+}
+async function clearInput(page, args) {
+  try {
+
+    const elementSelector = args[0];
+
+    await page.evaluate((elementSelector) => {
+      // Replace 'inputSelector' with the actual CSS selector of your input element
+      const inputElement = document.querySelector(elementSelector);
+
+      // Check if the input element exists
+      if (inputElement) {
+        // Set the value of the input element to an empty string
+        inputElement.value = '';
+      } else {
+        console.error('Input element not found');
+      }
+    }, elementSelector);
+
+    console.log(elementSelector + ' element cleared');
+
+    return {
+      success: true,
+    }
+  } catch (error) {
+    console.error('clearInput error:', error);
+    return {
+      success: false,
+      exitCode: -1,
     };
   }
 }
@@ -697,6 +749,17 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
         }
         paecResult.commandLogs.push(commandLog);
         break;
+      case 'clear-input':
+        result = await clearInput(page, args);
+        if (result.success === false) {
+          commandLog.success = false;
+          addProblem(
+            typeStrings[BAD_COMMAND],
+            `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+          );
+        }
+        paecResult.commandLogs.push(commandLog);
+        break;
 
       case 'checkbox-click':
         result = await performEvalCheckBoxClick(page, args);
@@ -710,7 +773,19 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
         paecResult.commandLogs.push(commandLog);
         break;
 
-      case 'text-search':
+      case 'text-not-find':
+        result = await performNegativeSearch(page, args);
+        if (result.success === false) {
+          commandLog.success = false;
+          addProblem(
+            typeStrings[BAD_COMMAND],
+            `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+          );
+        }
+        paecResult.commandLogs.push(commandLog);
+        break;
+
+      case 'text-find':
         result = await performSearch(page, args);
         if (result.success === false) {
           commandLog.success = false;
@@ -722,7 +797,7 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
         paecResult.commandLogs.push(commandLog);
         break;
 
-      case 'iframe-text-search':
+      case 'iframe-text-find':
         result = await performSearchInIframe(page, args);
         if (result.success === false) {
           commandLog.success = false;
