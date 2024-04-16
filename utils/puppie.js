@@ -101,7 +101,6 @@ async function performSelect(page, args) {
 async function waitForSelector(page, args) {
   try {
     const desiredSelector = args[0];
-    console.log("desiredSelector->", desiredSelector);
     await page.waitForSelector(desiredSelector, {
       timeout: 30000,
     })
