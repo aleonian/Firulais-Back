@@ -4,23 +4,29 @@ const {
   blue, cyan, green, magenta, red, yellow,
 } = require('colorette');
 
-const Queue = require('../models/queue');
+const Queue = require('../../models/queue');
 
-const Test = require('../models/test');
+const Test = require('../../models/test');
 
-const Result = require('../models/result');
+const Result = require('../../models/result');
 
-const websocket = require('./websocket');
+const websocket = require('../websocket');
 
-const { parseAndExecuteCommands }  = require("./parseAndExecuteCommands");
+const { parseAndExecuteCommands } = require("./parseAndExecuteCommands");
 
-const GREAT_SUCCESS = 0;
-const BROWSER_OPEN_FAIL = 1;
-const GENERAL_EXCEPTION = 2;
-const CONSOLE_PROBLEMS = 3;
-const PAGE_ERROR = 4;
-const REQUEST_FAILED = 5;
-const BAD_COMMAND = 6;
+const { setAddProblemFunction } = require('./paecFunctions');
+
+const {
+  GREAT_SUCCESS,
+  BROWSER_OPEN_FAIL,
+  GENERAL_EXCEPTION,
+  CONSOLE_PROBLEMS,
+  PAGE_ERROR,
+  REQUEST_FAILED,
+  BAD_COMMAND,
+  exitCodeStrings,
+  typeStrings
+} = require("../constants");
 
 let isBusy = false;
 
@@ -29,26 +35,6 @@ let queueLength = 0;
 let queueTimer;
 
 let responseObject = {};
-
-const exitCodeStrings = [
-  'All went good!',
-  'Could not open browser :(!',
-  'Some problem happened',
-  'Devtools console messages detected',
-  'There has been a pretty bad page error. Check console.',
-  'An http request failed.',
-  'This command failed to execute: ',
-];
-
-const typeStrings = {
-  0: 'GREAT_SUCCESS',
-  1: 'BROWSER_OPEN_FAIL',
-  2: 'GENERAL_EXCEPTION',
-  3: 'CONSOLE_PROBLEMS',
-  4: 'PAGE_ERROR',
-  5: 'REQUEST_FAILED',
-  6: 'BAD_COMMAND',
-};
 
 const pupConfig = {
   headless: JSON.parse(process.env.PUPPIE_HEADLESS),
@@ -63,6 +49,7 @@ if (process.env.EXECUTABLE_PATH) {
 }
 
 function addProblem(problemType, errorMessage) {
+  console.log("This is the dynamically injected version of addProblem()");
   responseObject.success = false;
   if (!responseObject.problems) responseObject.problems = [];
   responseObject.problems.push({
@@ -169,8 +156,6 @@ async function goFetch(jobData) {
       for (let i = 0; i < actions.length; i++) {
         const action = actions[i];
         const { commands } = action;
-        console.log("parseAndExecuteCommands->", parseAndExecuteCommands);
-        
         const paecResult = await parseAndExecuteCommands(commands, page, jobData);
         console.log('paecResult->', JSON.stringify(paecResult));
         console.log('action.name->', action.name);
@@ -250,6 +235,7 @@ async function init() {
   console.log('queue.length->', queue.length);
   queueLength = queue.length;
   if (queueLength > 0) startQueueMonitor();
+  setAddProblemFunction(addProblem);
 }
 
 async function enqueue(testData) {

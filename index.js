@@ -1,6 +1,6 @@
 const cron = require('node-cron');
 const config = require('./utils/config');
-const puppie = require('./utils/puppie');
+const puppie = require('./utils/puppeteer/puppie');
 const app = require('./app');
 
 // Set up the cron job to run myFunction() every day at 10 am

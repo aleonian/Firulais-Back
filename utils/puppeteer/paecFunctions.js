@@ -1,393 +1,18 @@
-const fs = require('fs');
-const tools = require('./common');
 const storage = {};
-const BAD_COMMAND = 6;
+const fs = require('fs');
+const tools = require('../common');
 
-const exitCodeStrings = [
-    'All went good!',
-    'Could not open browser :(!',
-    'Some problem happened',
-    'Devtools console messages detected',
-    'There has been a pretty bad page error. Check console.',
-    'An http request failed.',
-    'This command failed to execute: ',
-  ];
-  
-  const typeStrings = {
-    0: 'GREAT_SUCCESS',
-    1: 'BROWSER_OPEN_FAIL',
-    2: 'GENERAL_EXCEPTION',
-    3: 'CONSOLE_PROBLEMS',
-    4: 'PAGE_ERROR',
-    5: 'REQUEST_FAILED',
-    6: 'BAD_COMMAND',
-  };
-  
-async function parseAndExecuteCommands(commandsString, page, jobData) {
-    const commands = commandsString.split('\n');
-    const paecResult = {};
-    paecResult.commandLogs = [];
+let addProblemFunction = () => { 
+    console.log("The old addProblemFunction is being called!")
+};
 
-    // eslint-disable-next-line no-restricted-syntax
-    for (const command of commands) {
-        // const [instruction, ...args] = command.trim().split(' ');
-        const [instruction, ...args] = command.trim().split(/\s+/);
-        if (!instruction || instruction.length < 1 || instruction.startsWith("//")) continue;
-        console.log(`executing: ${instruction} ${args.join(' ')}`);
-
-        const commandLog = {};
-        commandLog.success = true;
-        commandLog.command = `${instruction} ${args.join(' ')}`;
-
-        let result;
-        switch (instruction) {
-            case 'goto':
-                await page.goto(args[0]);
-                paecResult.commandLogs.push(commandLog);
-                break;
-
-            case 'get-current-url':
-                result = await getCurrentUrl(page, args);
-                if (result.success === false) {
-                    commandLog.success = false;
-                    addProblem(
-                        typeStrings[BAD_COMMAND],
-                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
-                    );
-                }
-                paecResult.commandLogs.push(commandLog);
-                break;
-
-            case 'button-click':
-                result = await performClick(page, args);
-                if (result.success === false) {
-                    commandLog.success = false;
-                    addProblem(
-                        typeStrings[BAD_COMMAND],
-                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
-                    );
-                }
-                paecResult.commandLogs.push(commandLog);
-                break;
-
-            case 'take-pic':
-                result = await takeSnapshot(page, jobData);
-                if (result.success === false) {
-                    commandLog.success = false;
-                    addProblem(
-                        typeStrings[BAD_COMMAND],
-                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
-                    );
-                }
-                //some of these commands return data to be saved on the test report for this job
-                if (result.data) commandLog.data = result.data;
-                paecResult.commandLogs.push(commandLog);
-                break;
-
-            case 'get-video-duration':
-                result = await getVideoDuration(page, args);
-                if (result.success === false) {
-                    commandLog.success = false;
-                    addProblem(
-                        typeStrings[BAD_COMMAND],
-                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
-                    );
-                }
-                paecResult.commandLogs.push(commandLog);
-                break;
-
-            case 'get-video-current-time':
-                result = await getVideoCurrentTime(page, args);
-                if (result.success === false) {
-                    commandLog.success = false;
-                    addProblem(
-                        typeStrings[BAD_COMMAND],
-                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
-                    );
-                }
-                paecResult.commandLogs.push(commandLog);
-                break;
-
-            case 'set-video-current-time':
-                result = await setVideoCurentTime(page, args);
-                if (result.success === false) {
-                    commandLog.success = false;
-                    addProblem(
-                        typeStrings[BAD_COMMAND],
-                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
-                    );
-                }
-                //some of these commands return data to be saved on the test report for this job
-                if (result.data) commandLog.data = result.data;
-                paecResult.commandLogs.push(commandLog);
-                break;
-
-            case 'test-audio-play':
-                result = await hookAudioPlayer(page);
-                if (result.success === false) {
-                    commandLog.success = false;
-                    addProblem(
-                        typeStrings[BAD_COMMAND],
-                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
-                    );
-                }
-                paecResult.commandLogs.push(commandLog);
-                break;
-
-            case 'video-play':
-                result = await videoPlay(page, jobData);
-                if (result.success === false) {
-                    commandLog.success = false;
-                    addProblem(
-                        typeStrings[BAD_COMMAND],
-                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
-                    );
-                }
-                //some of these commands return data to be saved on the test report for this job
-                if (result.data) commandLog.data = result.data;
-                paecResult.commandLogs.push(commandLog);
-                break;
-
-            case 'audio-play':
-                result = await audioPlay(page, jobData);
-                if (result.success === false) {
-                    commandLog.success = false;
-                    addProblem(
-                        typeStrings[BAD_COMMAND],
-                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
-                    );
-                }
-                //some of these commands return data to be saved on the test report for this job
-                if (result.data) commandLog.data = result.data;
-                paecResult.commandLogs.push(commandLog);
-                break;
-
-            case 'compare-greater-equal':
-                result = await compareGreaterEqual(args);
-                if (result.success === false) {
-                    commandLog.success = false;
-                    addProblem(
-                        typeStrings[BAD_COMMAND],
-                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
-                    );
-                }
-                //some of these commands return data to be saved on the test report for this job
-                if (result.data) commandLog.data = result.data;
-                paecResult.commandLogs.push(commandLog);
-                break;
-
-            case 'compare-equal':
-                result = await compareEqual(args);
-                if (result.success === false) {
-                    commandLog.success = false;
-                    addProblem(
-                        typeStrings[BAD_COMMAND],
-                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
-                    );
-                }
-                paecResult.commandLogs.push(commandLog);
-                break;
-
-            case 'compare-not-equal':
-                result = await compareNotEqual(args);
-                if (result.success === false) {
-                    commandLog.success = false;
-                    addProblem(
-                        typeStrings[BAD_COMMAND],
-                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
-                    );
-                }
-                paecResult.commandLogs.push(commandLog);
-                break;
-
-            case 'scroll-bottom':
-                result = await performScrollBottom(page);
-                if (result.success === false) {
-                    commandLog.success = false;
-                    addProblem(
-                        typeStrings[BAD_COMMAND],
-                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
-                    );
-                }
-                paecResult.commandLogs.push(commandLog);
-                break;
-            case 'clear-input':
-                result = await clearInput(page, args);
-                if (result.success === false) {
-                    commandLog.success = false;
-                    addProblem(
-                        typeStrings[BAD_COMMAND],
-                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
-                    );
-                }
-                paecResult.commandLogs.push(commandLog);
-                break;
-
-            case 'checkbox-click':
-                result = await performEvalCheckBoxClick(page, args);
-                if (result.success === false) {
-                    commandLog.success = false;
-                    addProblem(
-                        typeStrings[BAD_COMMAND],
-                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
-                    );
-                }
-                paecResult.commandLogs.push(commandLog);
-                break;
-
-            case 'text-not-find':
-                result = await performNegativeSearch(page, args);
-                if (result.success === false) {
-                    commandLog.success = false;
-                    addProblem(
-                        typeStrings[BAD_COMMAND],
-                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
-                    );
-                }
-                paecResult.commandLogs.push(commandLog);
-                break;
-
-            case 'save-data-in-variable':
-                result = await saveDataInVariable(args);
-                if (result.success === false) {
-                    commandLog.success = false;
-                    addProblem(
-                        typeStrings[BAD_COMMAND],
-                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
-                    );
-                }
-                paecResult.commandLogs.push(commandLog);
-                break;
-
-            case 'get-text-content':
-                result = await getTextContent(page, args);
-                if (result.success === false) {
-                    commandLog.success = false;
-                    addProblem(
-                        typeStrings[BAD_COMMAND],
-                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
-                    );
-                }
-                paecResult.commandLogs.push(commandLog);
-                break;
-
-            case 'get-link-href':
-                result = await getLinkHref(page, args);
-                if (result.success === false) {
-                    commandLog.success = false;
-                    addProblem(
-                        typeStrings[BAD_COMMAND],
-                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
-                    );
-                }
-                paecResult.commandLogs.push(commandLog);
-                break;
-
-            case 'text-find':
-                result = await performSearch(page, args);
-                if (result.success === false) {
-                    commandLog.success = false;
-                    addProblem(
-                        typeStrings[BAD_COMMAND],
-                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
-                    );
-                }
-                paecResult.commandLogs.push(commandLog);
-                break;
-
-            case 'iframe-text-find':
-                result = await performSearchInIframe(page, args);
-                if (result.success === false) {
-                    commandLog.success = false;
-                    addProblem(
-                        typeStrings[BAD_COMMAND],
-                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
-                    );
-                }
-                paecResult.commandLogs.push(commandLog);
-                break;
-
-            case 'wait':
-                await tools.wait(args[0]);
-                paecResult.commandLogs.push(commandLog);
-                break;
-
-            case 'type':
-                result = await performType(page, args);
-                if (result.success === false) {
-                    commandLog.success = false;
-                    addProblem(
-                        typeStrings[BAD_COMMAND],
-                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
-                    );
-                }
-                paecResult.commandLogs.push(commandLog);
-                break;
-
-            case 'wait-for-selector':
-                result = await waitForSelector(page, args);
-                console.log("wait-for-selector result->", result)
-                if (result.success === false) {
-                    commandLog.success = false;
-                    addProblem(
-                        typeStrings[BAD_COMMAND],
-                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
-                    );
-                }
-                paecResult.commandLogs.push(commandLog);
-                break;
-
-            case 'wait-for-selector-visible':
-                result = await waitForSelectorVisible(page, args);
-                if (result.success === false) {
-                    commandLog.success = false;
-                    addProblem(
-                        typeStrings[BAD_COMMAND],
-                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
-                    );
-                }
-                paecResult.commandLogs.push(commandLog);
-                break;
-
-            case 'wait-for-selector-in-iframe':
-                result = await waitForSelectorInIframe(page, args);
-                if (result.success === false) {
-                    commandLog.success = false;
-                    addProblem(
-                        typeStrings[BAD_COMMAND],
-                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
-                    );
-                }
-                paecResult.commandLogs.push(commandLog);
-                break;
-
-            case 'select':
-                result = await performSelect(page, args);
-                if (result.success === false) {
-                    commandLog.success = false;
-                    addProblem(
-                        typeStrings[BAD_COMMAND],
-                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
-                    );
-                }
-                paecResult.commandLogs.push(commandLog);
-                break;
-            // Add more commands as needed
-            default:
-                console.log(`Unknown command: ${instruction}`);
-                addProblem(
-                    typeStrings[BAD_COMMAND],
-                    `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
-                );
-                commandLog.success = false;
-                paecResult.commandLogs.push(commandLog);
-                break;
-        }
-    }
-    return paecResult;
+const executeAddProblemFunction = (...args) =>{
+    addProblemFunction(...args);
 }
-
-
+function setAddProblemFunction(fn) {
+    console.log("setAddProblemFunction fn->", fn);
+    addProblemFunction = fn;
+}
 async function hookAudioPlayer(page) {
     try {
 
@@ -435,14 +60,12 @@ async function hookAudioPlayer(page) {
         };
     }
 }
-
 function getOperand(inputData) {
     if (inputData.startsWith('var-')) {
         return storage[inputData];
     }
     return inputData;
 }
-
 async function compareGreaterEqual(args) {
 
     try {
@@ -526,8 +149,6 @@ async function compareNotEqual(args) {
         };
     }
 }
-
-
 async function getTextContent(page, args) {
     try {
 
@@ -763,8 +384,6 @@ async function clearInput(page, args) {
         };
     }
 }
-
-
 async function performSelect(page, args) {
     try {
         await page.waitForSelector(args[0], {
@@ -869,7 +488,6 @@ async function performType(page, args) {
         };
     }
 }
-
 async function getCurrentUrl(page, args) {
     try {
         const currentUrl = await page.evaluate(() => window.location.href);
@@ -1148,11 +766,38 @@ async function performEvalCheckBoxClick(page, args) {
     } catch (error) {
         console.log(`performEvalCheckBoxClick() error: ${error}`);
         return {
-            success: false,
-
-
+            success: false
         };
     }
 }
 
-module.exports = { parseAndExecuteCommands };
+module.exports = {
+    hookAudioPlayer,
+    performEvalCheckBoxClick,
+    performScrollBottom,
+    performClick,
+    audioPlay,
+    videoPlay,
+    setVideoCurentTime,
+    getVideoCurrentTime,
+    getVideoDuration,
+    takeSnapshot,
+    getCurrentUrl,
+    performType,
+    waitForSelectorInIframe,
+    waitForSelectorVisible,
+    waitForSelector,
+    performSelect,
+    clearInput,
+    performSearchInIframe,
+    performNegativeSearch,
+    saveDataInVariable,
+    performSearch,
+    getLinkHref,
+    getTextContent,
+    compareNotEqual,
+    compareEqual,
+    compareGreaterEqual,
+    setAddProblemFunction,
+    executeAddProblemFunction,
+}

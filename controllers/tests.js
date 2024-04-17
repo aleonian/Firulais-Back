@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 // eslint-disable-next-line import/no-extraneous-dependencies
 const Test = require('../models/test');
 
-const testTools = require('../utils/puppie');
+const testTools = require('../utils/puppeteer/puppie');
 
 const commonTools = require('../utils/common');
 
