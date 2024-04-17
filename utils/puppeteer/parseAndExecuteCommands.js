@@ -39,7 +39,9 @@ const {
     compareEqual,
     compareGreaterEqual,
     executeAddProblemFunction,
-    checkImageTags
+    checkAllImageTags,
+    checkImageTag,
+    getAttributeLang
 } = require("./paecFunctions");
 
 
@@ -68,6 +70,18 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
 
             case 'get-current-url':
                 result = await getCurrentUrl(page, args);
+                if (result.success === false) {
+                    commandLog.success = false;
+                    executeAddProblemFunction(
+                        typeStrings[BAD_COMMAND],
+                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+                    );
+                }
+                paecResult.commandLogs.push(commandLog);
+                break;
+
+            case 'get-attr-lang':
+                result = await getAttributeLang(page, args);
                 if (result.success === false) {
                     commandLog.success = false;
                     executeAddProblemFunction(
@@ -117,7 +131,20 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
                 break;
 
             case 'check-image-tags':
-                result = await checkImageTags(page, args);
+                result = await checkAllImageTags(page, args);
+                if (result.success === false) {
+                    commandLog.success = false;
+                    executeAddProblemFunction(
+                        typeStrings[BAD_COMMAND],
+                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+                    );
+                }
+                if (result.data) commandLog.data = result.data;
+                paecResult.commandLogs.push(commandLog);
+                break;
+
+            case 'check-image-tag':
+                result = await checkImageTag(page, args);
                 if (result.success === false) {
                     commandLog.success = false;
                     executeAddProblemFunction(

@@ -552,7 +552,7 @@ async function takeSnapshot(page, jobData) {
         };
     }
 }
-async function checkImageTags(page, args) {
+async function checkAllImageTags(page, args) {
     try {
 
         const imageElements = await page.$$eval('img', imgs => imgs.map(img => ({
@@ -578,7 +578,55 @@ async function checkImageTags(page, args) {
             }
         };
     } catch (error) {
-        console.log("checkImageTags error:", error);
+        console.log("checkAllImageTags error:", error);
+        return {
+            success: false,
+        };
+
+    }
+}
+async function checkImageTag(page, args) {
+    try {
+        const desiredImagePath = args[0];
+        const desiredImageTag = args.slice(1).join(' ');
+
+        if (!desiredImagePath || desiredImagePath.length < 1) {
+            console.log("checkImageTag: You need to provide an image path.")
+            return {
+                success: false,
+                errorMessage: "You need to provide a image path."
+            };
+        }
+
+        const imageElements = await page.$$eval('img', imgs => imgs.map(img => ({
+            src: img.getAttribute('src'),
+            alt: img.getAttribute('alt'),
+        })));
+
+        let desiredImageHasCorrectTag = true;
+        let desiredImageObject = {};
+
+        imageElements.forEach((image, index) => {
+            if (image.src === desiredImagePath) {
+                desiredImageObject.src = image.src;
+                desiredImageObject.alt = image.alt;
+                if (!image.alt || image.alt !== desiredImageTag) {
+                    desiredImageHasCorrectTag = false;
+                }
+            }
+        });
+        const resultArray = [];
+        resultArray.push(desiredImageObject);
+
+        return {
+            success: desiredImageHasCorrectTag,
+            data: {
+                name: 'image-tags',
+                value: resultArray
+            }
+        };
+    } catch (error) {
+        console.log("checkImageTag error:", error);
         return {
             success: false,
         };
@@ -644,6 +692,35 @@ async function getVideoCurrentTime(page, args) {
         };
     } catch (error) {
         console.log("getVideoCurrentTime error:", error);
+        return {
+            success: false,
+        };
+    }
+}
+async function getAttributeLang(page, args) {
+    try {
+
+        const dataLabel = args[0];
+
+        if (!dataLabel || dataLabel.length < 1) {
+            console.log("getVideoCurrentTime: You need to provide a variable name.")
+            return {
+                success: false,
+                errorMessage: "You need to provide a variable name."
+            };
+        }
+        const langAttribute = await page.evaluate(() => {
+            const htmlElement = document.documentElement;
+            return htmlElement.getAttribute('lang');
+        });
+
+        storage[dataLabel] = langAttribute;
+
+        return {
+            success: true,
+        };
+    } catch (error) {
+        console.log("getAttributeLang error:", error);
         return {
             success: false,
         };
@@ -843,5 +920,7 @@ module.exports = {
     compareGreaterEqual,
     setAddProblemFunction,
     executeAddProblemFunction,
-    checkImageTags
+    checkAllImageTags,
+    checkImageTag,
+    getAttributeLang
 }
