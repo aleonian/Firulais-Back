@@ -9,8 +9,8 @@ const {
     BAD_COMMAND,
     exitCodeStrings,
     typeStrings
-  } = require("../constants"); 
-  
+} = require("../constants");
+
 const {
     hookAudioPlayer,
     performEvalCheckBoxClick,
@@ -39,6 +39,7 @@ const {
     compareEqual,
     compareGreaterEqual,
     executeAddProblemFunction,
+    checkImageTags
 } = require("./paecFunctions");
 
 
@@ -114,6 +115,20 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
                 }
                 paecResult.commandLogs.push(commandLog);
                 break;
+
+            case 'check-image-tags':
+                result = await checkImageTags(page, args);
+                if (result.success === false) {
+                    commandLog.success = false;
+                    executeAddProblemFunction(
+                        typeStrings[BAD_COMMAND],
+                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+                    );
+                }
+                if (result.data) commandLog.data = result.data;
+                paecResult.commandLogs.push(commandLog);
+                break;
+
 
             case 'get-video-current-time':
                 result = await getVideoCurrentTime(page, args);

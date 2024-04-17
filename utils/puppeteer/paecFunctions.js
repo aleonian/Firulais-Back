@@ -1,16 +1,26 @@
 const storage = {};
 const fs = require('fs');
 const tools = require('../common');
+const {
+    GREAT_SUCCESS,
+    BROWSER_OPEN_FAIL,
+    GENERAL_EXCEPTION,
+    CONSOLE_PROBLEMS,
+    PAGE_ERROR,
+    REQUEST_FAILED,
+    BAD_COMMAND,
+    exitCodeStrings,
+    typeStrings
+} = require("../constants");
 
-let addProblemFunction = () => { 
+let addProblemFunction = () => {
     console.log("The old addProblemFunction is being called!")
 };
 
-const executeAddProblemFunction = (...args) =>{
+const executeAddProblemFunction = (...args) => {
     addProblemFunction(...args);
 }
 function setAddProblemFunction(fn) {
-    console.log("setAddProblemFunction fn->", fn);
     addProblemFunction = fn;
 }
 async function hookAudioPlayer(page) {
@@ -542,6 +552,39 @@ async function takeSnapshot(page, jobData) {
         };
     }
 }
+async function checkImageTags(page, args) {
+    try {
+
+        const imageElements = await page.$$eval('img', imgs => imgs.map(img => ({
+            src: img.getAttribute('src'),
+            alt: img.getAttribute('alt'),
+        })));
+
+        console.log("imageElements->", imageElements);
+
+        let everyImageHasATag = true;
+
+        imageElements.forEach((image, index) => {
+            if (!image.alt) {
+                everyImageHasATag = false;
+            }
+        });
+
+        return {
+            success: everyImageHasATag,
+            data: {
+                name: 'image-tags',
+                value: imageElements
+            }
+        };
+    } catch (error) {
+        console.log("checkImageTags error:", error);
+        return {
+            success: false,
+        };
+
+    }
+}
 async function getVideoDuration(page, args) {
     try {
 
@@ -800,4 +843,5 @@ module.exports = {
     compareGreaterEqual,
     setAddProblemFunction,
     executeAddProblemFunction,
+    checkImageTags
 }

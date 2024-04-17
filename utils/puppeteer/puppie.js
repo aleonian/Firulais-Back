@@ -49,7 +49,6 @@ if (process.env.EXECUTABLE_PATH) {
 }
 
 function addProblem(problemType, errorMessage) {
-  console.log("This is the dynamically injected version of addProblem()");
   responseObject.success = false;
   if (!responseObject.problems) responseObject.problems = [];
   responseObject.problems.push({
