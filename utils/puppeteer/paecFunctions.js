@@ -125,6 +125,13 @@ async function compareEqual(args) {
         else {
             return {
                 success: false,
+                data: {
+                    name: 'compare-equal',
+                    value:{
+                        firstOperand,
+                        secondOperand
+                    }
+                }
             };
         }
     } catch (error) {
@@ -537,12 +544,12 @@ async function takeSnapshot(page, jobData) {
 
         const fileName = `screenshot-${jobData.id}.png`;
         await page.screenshot({ path: `${directory}/${fileName}` });
-
+        const fileBuffer = fs.readFileSync( `${directory}/${fileName}`);
         return {
             success: true,
             data: {
-                name: 'snapshot',
-                value: fileName
+                name: 'take-pic',
+                value: fileBuffer
             }
         };
     } catch (error) {
@@ -573,7 +580,7 @@ async function checkAllImageTags(page, args) {
         return {
             success: everyImageHasATag,
             data: {
-                name: 'image-tags',
+                name: 'check-image-tags',
                 value: imageElements
             }
         };

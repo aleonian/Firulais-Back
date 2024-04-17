@@ -246,6 +246,7 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
                         `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
                     );
                 }
+                if (result.data) commandLog.data = result.data;
                 paecResult.commandLogs.push(commandLog);
                 break;
 
