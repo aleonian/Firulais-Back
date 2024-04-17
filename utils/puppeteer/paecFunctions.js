@@ -544,12 +544,11 @@ async function takeSnapshot(page, jobData) {
 
         const fileName = `screenshot-${jobData.id}.png`;
         await page.screenshot({ path: `${directory}/${fileName}` });
-        const fileBuffer = fs.readFileSync( `${directory}/${fileName}`);
         return {
             success: true,
             data: {
                 name: 'take-pic',
-                value: fileBuffer
+                value: fileName
             }
         };
     } catch (error) {
