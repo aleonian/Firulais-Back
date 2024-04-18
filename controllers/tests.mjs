@@ -1,13 +1,15 @@
-const testRouter = require('express').Router();
+import express from 'express';
 
-const mongoose = require('mongoose');
+export const testRouter = express.Router();
+
+import mongoose from 'mongoose';
 
 // eslint-disable-next-line import/no-extraneous-dependencies
-const Test = require('../models/test.mjs');
+import { Test } from '../models/test.mjs';
 
-const testTools = require('../utils/puppeteer/puppie.mjs');
 
-const commonTools = require('../utils/common.mjs');
+import * as testTools from '../utils/puppeteer/puppie.mjs';
+import * as commonTools from '../utils/common.mjs';
 
 class QueueError extends Error {
   constructor(message) {
@@ -181,5 +183,3 @@ testRouter.put('/:id', async (request, response, next) => {
     console.log(error);
   }
 });
-
-module.exports = testRouter;

@@ -1,8 +1,8 @@
-const bcrypt = require('bcryptjs');
+import bcrypt from 'bcryptjs';
+import express from 'express';
+export const usersRouter = express.Router();
 
-const usersRouter = require('express').Router();
-
-const User = require('../models/user');
+import { User } from '../models/user.mjs';
 
 usersRouter.post('/', async (request, response, next) => {
   const { username, name, password } = request.body;
@@ -28,5 +28,3 @@ usersRouter.post('/', async (request, response, next) => {
     console.log(`${error.name} message: ${error.message}`);
   }
 });
-
-module.exports = usersRouter;

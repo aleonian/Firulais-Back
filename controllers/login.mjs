@@ -1,14 +1,15 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
-const jwt = require('jsonwebtoken');
-
+import jwt from 'jsonwebtoken';
 // eslint-disable-next-line import/no-extraneous-dependencies
-const bcrypt = require('bcryptjs');
+import bcrypt from 'bcryptjs';
 
-const loginRouter = require('express').Router();
+import express from 'express';
 
-const User = require('../models/user');
+export const loginRouter = express.Router();
 
-const commonTools = require('../utils/common.mjs');
+import { User } from '../models/user.mjs';
+
+import * as commonTools from '../utils/common.mjs';
 
 loginRouter.post('/', async (request, response, next) => {
   const { username, password } = request.body;
@@ -38,5 +39,3 @@ loginRouter.post('/', async (request, response, next) => {
     next(error);
   }
 });
-
-module.exports = loginRouter;

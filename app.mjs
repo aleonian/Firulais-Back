@@ -3,9 +3,21 @@ import express from 'express';
 
 export const app = express();
 
-const http = require('http').createServer();
+// const http = require('http').createServer();
 
-const io = require('socket.io')(http, {
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+
+const http = createServer();
+
+// const io = require('socket.io')(http, {
+//   cors: {
+//     origin: '*',
+//     methods: ['GET', 'POST'],
+//   },
+// });
+
+const io = new Server(http, {
   cors: {
     origin: '*',
     methods: ['GET', 'POST'],
@@ -13,24 +25,32 @@ const io = require('socket.io')(http, {
 });
 
 // eslint-disable-next-line import/no-extraneous-dependencies
-const cors = require('cors');
-
+// const cors = require('cors');
+import cors from 'cors';
 // eslint-disable-next-line import/no-extraneous-dependencies
-const mongoose = require('mongoose');
+// const mongoose = require('mongoose');
+import mongoose from 'mongoose';
+// const config = require('./utils/config.mjs');
+import * as config from './utils/config.mjs'
+// const websocket = require('./utils/websocket.mjs');
+import * as websocket from './utils/websocket.mjs'
 
-const config = require('./utils/config.mjs');
-
-const websocket = require('./utils/websocket.mjs');
-
-const middleware = require('./utils/middleware');
+// const middleware = require('./utils/middleware');
+import * as middleware from './utils/middleware.mjs'
 
 const mongoUrl = config.MONGODB_URI;
 
-const usersRouter = require('./controllers/users');
-const loginRouter = require('./controllers/login');
-const testsRouter = require('./controllers/tests');
-const indexRouter = require('./controllers/index');
-const resultsRouter = require('./controllers/results');
+// const usersRouter = require('./controllers/users');
+import { usersRouter } from './controllers/users.mjs';
+
+import { loginRouter } from './controllers/login.mjs';
+
+import { testRouter } from './controllers/tests.mjs';
+
+import { indexRouter } from './controllers/index.mjs';
+
+import { resultsRouter } from './controllers/results.mjs';
+
 
 mongoose.connect(mongoUrl);
 
@@ -42,7 +62,7 @@ app.use('/login', loginRouter);
 app.use(middleware.tokenExtractor);
 app.use(middleware.userExtractor);
 app.use('/users', usersRouter);
-app.use('/tests', testsRouter);
+app.use('/tests', testRouter);
 app.use('/results', resultsRouter);
 app.use(middleware.unknownEndpoint);
 app.use(middleware.errorHandler);

@@ -1,10 +1,13 @@
-const resultsRouter = require('express').Router();
+import express from 'express';
 
-const mongoose = require('mongoose');
+export const resultsRouter = express.Router();
 
-const Result = require('../models/result');
+import mongoose from 'mongoose';
 
-const commonTools = require('../utils/common.mjs');
+import { Result } from '../models/result.mjs';
+
+import * as commonTools from '../utils/common.mjs';
+
 
 resultsRouter.get('/', async (request, response, next) => {
   try {
@@ -60,5 +63,3 @@ resultsRouter.get('/erase/all', async (request, response, next) => {
     return (next(error));
   }
 });
-
-module.exports = resultsRouter;

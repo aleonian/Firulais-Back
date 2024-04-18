@@ -1,13 +1,15 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
-const jwt = require('jsonwebtoken');
+// const jwt = require('jsonwebtoken');
+import jwt from 'jsonwebtoken';
 
-const commonTools = require('./common.mjs');
+// const commonTools = require('./common.mjs');
+import * as commonTools from './common.mjs';
 
-const unknownEndpoint = (request, response) => {
+export const unknownEndpoint = (request, response) => {
   response.status(404).send({ error: 'unknown endpoint' });
 };
 
-const errorHandler = (error, request, response, next) => {
+export const errorHandler = (error, request, response, next) => {
   console.log('error.name = ', error.name);
   console.log('error.message = ', error.message);
 
@@ -53,7 +55,7 @@ const getTokenFrom = (request) => {
   return null;
 };
 
-const tokenExtractor = (request, response, next) => {
+export const tokenExtractor = (request, response, next) => {
   const token = getTokenFrom(request);
   request.token = token;
   return next();
@@ -61,7 +63,7 @@ const tokenExtractor = (request, response, next) => {
 
 // tries to extract the token from the request object
 // and sets request.userid obtained from the token
-const userExtractor = (request, response, next) => {
+export const userExtractor = (request, response, next) => {
   if (!request.token) {
     next(commonTools.createError('MissingTokenError', 'Bro, you need an auth token to do this.'));
   }
@@ -76,9 +78,9 @@ const userExtractor = (request, response, next) => {
   return next();
 };
 
-module.exports = {
-  unknownEndpoint,
-  errorHandler,
-  tokenExtractor,
-  userExtractor,
-};
+// module.exports = {
+//   unknownEndpoint,
+//   errorHandler,
+//   tokenExtractor,
+//   userExtractor,
+// };

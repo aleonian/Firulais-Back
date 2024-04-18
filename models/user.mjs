@@ -1,5 +1,5 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const userSchema = new mongoose.Schema({
   username: {
@@ -24,4 +24,5 @@ userSchema.set('toJSON', {
   },
 });
 
-module.exports = mongoose.model('User', userSchema);
+export const User = mongoose.model('User', userSchema);
+
