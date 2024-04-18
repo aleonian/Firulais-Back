@@ -39,13 +39,15 @@ import {
     compareNotEqual,
     compareEqual,
     compareGreaterEqual,
+    compareLowerEqual,
     executeAddProblemFunction,
     checkAllImageTags,
     checkImageTag,
     getAttributeLang,
     setViewport,
     generateLighthouseReport,
-    resetAudioPlayer
+    resetAudioPlayer,
+    getLoadTime
 } from "./paecFunctions.mjs";
 
 export async function parseAndExecuteCommands(commandsString, page, jobData) {
@@ -252,6 +254,19 @@ export async function parseAndExecuteCommands(commandsString, page, jobData) {
                 paecResult.commandLogs.push(commandLog);
                 break;
 
+            case 'get-load-time':
+                result = await getLoadTime(page, args);
+                if (result.success === false) {
+                    commandLog.success = false;
+                    executeAddProblemFunction(
+                        typeStrings[BAD_COMMAND],
+                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+                    );
+                }
+                if (result.data) commandLog.data = result.data;
+                paecResult.commandLogs.push(commandLog);
+                break;
+
             case 'audio-reset':
                 result = await resetAudioPlayer(page, jobData);
                 if (result.success === false) {
@@ -268,6 +283,19 @@ export async function parseAndExecuteCommands(commandsString, page, jobData) {
 
             case 'compare-greater-equal':
                 result = await compareGreaterEqual(args);
+                if (result.success === false) {
+                    commandLog.success = false;
+                    executeAddProblemFunction(
+                        typeStrings[BAD_COMMAND],
+                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+                    );
+                }
+                //some of these commands return data to be saved on the test report for this job
+                if (result.data) commandLog.data = result.data;
+                paecResult.commandLogs.push(commandLog);
+                break;
+            case 'compare-lower-equal':
+                result = await compareLowerEqual(args);
                 if (result.success === false) {
                     commandLog.success = false;
                     executeAddProblemFunction(

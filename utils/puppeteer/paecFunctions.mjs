@@ -80,7 +80,7 @@ export async function testAudioPlayer(page) {
         };
     }
 }
-function getOperand(inputData) {
+function getVariableValue(inputData) {
     if (inputData.startsWith('var-')) {
         return storage[inputData];
     }
@@ -92,11 +92,42 @@ export async function compareGreaterEqual(args) {
 
         let firstOperand, secondOperand;
 
-        firstOperand = getOperand(args[0]);
+        firstOperand = getVariableValue(args[0]);
 
-        secondOperand = getOperand(args[1]);
+        secondOperand = getVariableValue(args[1]);
 
         if (firstOperand >= secondOperand) {
+            return {
+                success: true,
+            };
+        }
+        else {
+            return {
+                success: false,
+                value: {
+                    firstOperand,
+                    secondOperand
+                }
+            };
+        }
+    } catch (error) {
+        return {
+            success: false,
+        };
+    }
+
+}
+export async function compareLowerEqual(args) {
+
+    try {
+
+        let firstOperand, secondOperand;
+
+        firstOperand = getVariableValue(args[0]);
+
+        secondOperand = getVariableValue(args[1]);
+
+        if (firstOperand <= secondOperand) {
             return {
                 success: true,
             };
@@ -109,6 +140,13 @@ export async function compareGreaterEqual(args) {
     } catch (error) {
         return {
             success: false,
+            data: {
+                name: 'compare-lower-equal',
+                value: {
+                    firstOperand,
+                    secondOperand
+                }
+            }
         };
     }
 
@@ -119,9 +157,9 @@ export async function compareEqual(args) {
 
         let firstOperand, secondOperand;
 
-        firstOperand = getOperand(args[0]);
+        firstOperand = getVariableValue(args[0]);
 
-        secondOperand = getOperand(args[1]);
+        secondOperand = getVariableValue(args[1]);
 
         console.log("compareEqual:");
         console.log("firstOperand->", firstOperand);
@@ -156,9 +194,9 @@ export async function compareNotEqual(args) {
 
         let firstOperand, secondOperand;
 
-        firstOperand = getOperand(args[0]);
+        firstOperand = getVariableValue(args[0]);
 
-        secondOperand = getOperand(args[1]);
+        secondOperand = getVariableValue(args[1]);
 
         if (firstOperand !== secondOperand) {
             return {
@@ -168,6 +206,13 @@ export async function compareNotEqual(args) {
         else {
             return {
                 success: false,
+                data: {
+                    name: 'compare-not-equal',
+                    value: {
+                        firstOperand,
+                        secondOperand
+                    }
+                }
             };
         }
     } catch (error) {
@@ -832,7 +877,7 @@ export async function setViewport(page, args) {
         // Large:
         // 1920x1080
 
-        let viewportSize = getOperand(args[0]);
+        let viewportSize = getVariableValue(args[0]);
 
         if (!viewportSize || viewportSize.length < 1) {
             console.log("setViewport: You need to provide a viewport size.")
@@ -926,6 +971,43 @@ export async function resetAudioPlayer(page) {
         };
     } catch (error) {
         console.log("audioPlay error:", error);
+        return {
+            success: false,
+        };
+    }
+}
+export async function getLoadTime(page, args) {
+    try {
+
+        let url = args[0];
+        let dataLabel = args[1];
+
+        if (!url || url < 1) {
+            console.error("getLoadTime: You need to provide a url.")
+            return {
+                success: false,
+                errorMessage: "You need to provide a url."
+            };
+        }
+
+        if (!dataLabel || dataLabel < 1) {
+            console.error("getLoadTime: You need to provide a variable name to store the load time.")
+            return {
+                success: false,
+                errorMessage: "You need to provide a variable name to store the load time."
+            };
+        }
+
+        const startTime = Date.now();
+        await page.goto(url);
+        const loadTime = Date.now() - startTime;
+        storage[dataLabel] = loadTime;
+
+        return {
+            success: true,
+        };
+    } catch (error) {
+        console.log("getLoadTime error:", error);
         return {
             success: false,
         };
