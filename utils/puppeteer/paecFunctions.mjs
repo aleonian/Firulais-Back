@@ -4,18 +4,6 @@ import * as tools from '../common.mjs';
 import lighthouse from 'lighthouse'; // Use import instead of require
 import { ReportGenerator } from 'lighthouse/report/generator/report-generator.js'; // Specify the path to report-generator
 
-// const {
-//     GREAT_SUCCESS,
-//     BROWSER_OPEN_FAIL,
-//     GENERAL_EXCEPTION,
-//     CONSOLE_PROBLEMS,
-//     PAGE_ERROR,
-//     REQUEST_FAILED,
-//     BAD_COMMAND,
-//     exitCodeStrings,
-//     typeStrings
-// } = require("../constants");
-
 import {
     GREAT_SUCCESS,
     BROWSER_OPEN_FAIL,
@@ -44,11 +32,11 @@ export function setAddProblemFunction(fn) {
 export function setBrowserObject(browserObj) {
     browser = browserObj;
 }
-export async function hookAudioPlayer(page) {
+export async function testAudioPlayer(page) {
     try {
 
         const timeoutPromise = new Promise(resolve => setTimeout(() => {
-            console.log("returning after 15 secs...");
+            console.log("timeoutPromise returning after 15 secs...");
             resolve(false)
         }, 15000));
 
@@ -75,10 +63,11 @@ export async function hookAudioPlayer(page) {
                     //   resolve({ action: 'stop' }); // Resolve with an object indicating stop action
                     // });
                 });
+                audioPlay(page);
             });
         });
 
-        const resultPromise = await Promise.race([timeoutPromise, evaluationPromise]);
+        const resultPromise = await Promise.race([evaluationPromise, timeoutPromise]);
 
         console.log("resultPromise->", resultPromise);
 
@@ -916,6 +905,32 @@ export async function audioPlay(page) {
         };
     }
 }
+export async function resetAudioPlayer(page) {
+    try {
+
+        await page.waitForSelector('audio');
+
+        await page.evaluate(() => {
+            try {
+                const audio = document.querySelector('audio');
+                audio.pause();
+                audio.currentTime = 0;
+            }
+            catch (error) {
+                console.log("resetAudioPlayer: Trouble resetting audio player", error);
+            }
+        });
+
+        return {
+            success: true,
+        };
+    } catch (error) {
+        console.log("audioPlay error:", error);
+        return {
+            success: false,
+        };
+    }
+}
 export async function performClick(page, args) {
     const selector = args.join(' ');
 
@@ -997,40 +1012,3 @@ export async function performEvalCheckBoxClick(page, args) {
         };
     }
 }
-
-// module.exports = {
-//     hookAudioPlayer,
-//     performEvalCheckBoxClick,
-//     performScrollBottom,
-//     performClick,
-//     audioPlay,
-//     videoPlay,
-//     setVideoCurentTime,
-//     getVideoCurrentTime,
-//     getVideoDuration,
-//     takeSnapshot,
-//     getCurrentUrl,
-//     performType,
-//     waitForSelectorInIframe,
-//     waitForSelectorVisible,
-//     waitForSelector,
-//     performSelect,
-//     clearInput,
-//     performSearchInIframe,
-//     performNegativeSearch,
-//     saveDataInVariable,
-//     performSearch,
-//     getLinkHref,
-//     getTextContent,
-//     compareNotEqual,
-//     compareEqual,
-//     compareGreaterEqual,
-//     setAddProblemFunction,
-//     executeAddProblemFunction,
-//     checkAllImageTags,
-//     checkImageTag,
-//     getAttributeLang,
-//     setViewport,
-//     generateLighthouseReport,
-//     setBrowserObject
-// }
