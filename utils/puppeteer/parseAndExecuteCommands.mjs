@@ -137,7 +137,6 @@ export async function parseAndExecuteCommands(commandsString, page, jobData) {
 
     // eslint-disable-next-line no-restricted-syntax
     for (const command of commands) {
-        // const [instruction, ...args] = command.trim().split(' ');
         const [instruction, ...args] = command.trim().split(/\s+/);
         if (!instruction || instruction.length < 1 || instruction.startsWith("//")) continue;
         console.log(`executing: ${instruction} ${args.join(' ')}`);
@@ -166,7 +165,7 @@ export async function parseAndExecuteCommands(commandsString, page, jobData) {
                 break;
 
             case 'generate-lighthouse-report':
-                result = await generateLighthouseReport(page, args);
+                result = await generateLighthouseReport(page, jobData);
                 if (result.success === false) {
                     commandLog.success = false;
                     executeAddProblemFunction(
@@ -174,6 +173,7 @@ export async function parseAndExecuteCommands(commandsString, page, jobData) {
                         `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
                     );
                 }
+                if (result.data) commandLog.data = result.data;
                 paecResult.commandLogs.push(commandLog);
                 break;
 

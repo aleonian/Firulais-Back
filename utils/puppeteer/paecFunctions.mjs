@@ -549,8 +549,19 @@ export async function getCurrentUrl(page, args) {
         };
     }
 }
-export async function generateLighthouseReport(page, args) {
+export async function generateLighthouseReport(page, jobData) {
     try {
+
+        const directory = './public/reports';
+
+        // Check if the directory exists
+        if (!fs.existsSync(directory)) {
+            // If it doesn't exist, create it
+            fs.mkdirSync(directory);
+            console.log(`Directory '${directory}' created successfully.`);
+        } else {
+            console.log(`Directory '${directory}' already exists.`);
+        }
 
         const { lhr } = await lighthouse(page.url(), { // Destructure lhr from the report
             port: (new URL(browser.wsEndpoint())).port,
@@ -560,12 +571,19 @@ export async function generateLighthouseReport(page, args) {
             chromeFlags: ['--disable-mobile-emulation']
         });
 
+        const fileName = `report-${jobData.id}-${Date.now()}.html`;
+        console.log("Gonna create ", fileName);
+
         const html = ReportGenerator.generateReport(lhr, 'html'); // Generate HTML report
-        fs.writeFileSync('report.html', html); // Write HTML report to file
+        fs.writeFileSync(`${directory}/${fileName}`, html); // Write HTML report to file
         console.log('HTML report generated.');
 
         return {
             success: true,
+            data: {
+                name: 'generate-lighthouse-report',
+                value: fileName
+            }
         };
     }
     catch (error) {
