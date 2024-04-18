@@ -1,22 +1,33 @@
-const puppeteer = require('puppeteer');
+// const puppeteer = require('puppeteer');
+import puppeteer from 'puppeteer';
 
-const {
+import {
   blue, cyan, green, magenta, red, yellow,
-} = require('colorette');
+} from 'colorette';
+// const {
+//   blue, cyan, green, magenta, red, yellow,
+// } = require('colorette');
 
-const Queue = require('../../models/queue');
+import { Queue } from '../../models/queue.mjs';
 
-const Test = require('../../models/test');
+import { Test } from '../../models/test.mjs';
 
-const Result = require('../../models/result');
+import { Result } from '../../models/result.mjs';
 
-const websocket = require('../websocket');
+// const Queue = require('../../models/queue');
 
-const { parseAndExecuteCommands } = require("./parseAndExecuteCommands");
+// const Test = require('../../models/test');
 
-const { setAddProblemFunction } = require('./paecFunctions');
+// const Result = require('../../models/result');
 
-const {
+import { emit } from '../websocket.mjs';
+
+
+import { parseAndExecuteCommands } from "./parseAndExecuteCommands.mjs";
+
+import { setAddProblemFunction, setBrowserObject } from './paecFunctions.mjs';
+
+import {
   GREAT_SUCCESS,
   BROWSER_OPEN_FAIL,
   GENERAL_EXCEPTION,
@@ -26,9 +37,9 @@ const {
   BAD_COMMAND,
   exitCodeStrings,
   typeStrings
-} = require("../constants");
+} from "../constants.js";
 
-let isBusy = false;
+export let isBusy = false;
 
 let queueLength = 0;
 
@@ -37,7 +48,7 @@ let queueTimer;
 let responseObject = {};
 
 const pupConfig = {
-  headless: JSON.parse(process.env.PUPPIE_HEADLESS),
+  headless: process.env.PUPPIE_HEADLESS ? JSON.parse(process.env.PUPPIE_HEADLESS) : false,
   defaultViewport: null,
   ignoreDefaultArgs: ['--enable-automation'],
   args: ['--start-maximized', '--no-sandbox', '--disable-setuid-sandbox'],
@@ -60,7 +71,7 @@ function addProblem(problemType, errorMessage) {
 async function goFetch(jobData) {
   try {
     const browser = await puppeteer.launch(pupConfig);
-
+    setBrowserObject(browser);
     if (!browser) {
       responseObject = {
         success: false,
@@ -189,7 +200,7 @@ async function processQueue() {
 
         await nextTest.save();
 
-        websocket.emit(nextTest);
+        emit(nextTest);
 
         const runResults = await goFetch(nextTest);
 
@@ -197,7 +208,7 @@ async function processQueue() {
 
         nextTest.state = false;
 
-        websocket.emit(nextTest);
+        emit(nextTest);
 
         await nextTest.save();
 
@@ -228,7 +239,7 @@ function startQueueMonitor() {
   queueTimer = setInterval(() => processQueue(), 5000);
 }
 
-async function init() {
+export async function init() {
   // loads all the documents in the queue and modifies queueLength accordingly;
   const queue = await Queue.find({});
   console.log('queue.length->', queue.length);
@@ -237,7 +248,7 @@ async function init() {
   setAddProblemFunction(addProblem);
 }
 
-async function enqueue(testData) {
+export async function enqueue(testData) {
   const enqueuedJob = new Queue({
     testId: testData.id,
   });
@@ -253,7 +264,7 @@ async function enqueue(testData) {
   }
 }
 
-async function enqueueAllTests() {
+export async function enqueueAllTests() {
   console.log('Enqueing all tests...');
   const tests = await Test.find({});
   for (let i = 0; i < tests.length; i++) {
@@ -265,9 +276,9 @@ async function enqueueAllTests() {
   }
 }
 
-module.exports = {
-  enqueue,
-  init,
-  enqueueAllTests,
-  isBusy,
-};
+// module.exports = {
+//   enqueue,
+//   init,
+//   enqueueAllTests,
+//   isBusy,
+// };

@@ -1,7 +1,7 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 const jwt = require('jsonwebtoken');
 
-const commonTools = require('./common');
+const commonTools = require('./common.mjs');
 
 const unknownEndpoint = (request, response) => {
   response.status(404).send({ error: 'unknown endpoint' });

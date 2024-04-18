@@ -3,11 +3,11 @@ const testRouter = require('express').Router();
 const mongoose = require('mongoose');
 
 // eslint-disable-next-line import/no-extraneous-dependencies
-const Test = require('../models/test');
+const Test = require('../models/test.mjs');
 
-const testTools = require('../utils/puppeteer/puppie');
+const testTools = require('../utils/puppeteer/puppie.mjs');
 
-const commonTools = require('../utils/common');
+const commonTools = require('../utils/common.mjs');
 
 class QueueError extends Error {
   constructor(message) {

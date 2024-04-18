@@ -3,8 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "cross-env NODE_ENV=production node index.js",
-    "dev": "cross-env NODE_ENV=development nodemon index.js",
+    "start": "cross-env NODE_ENV=production node index.mjs",
+    "dev": "cross-env NODE_ENV=development nodemon index.mjs",
     "lint": "eslint ."
   },
   "dependencies": {
@@ -19,6 +19,7 @@
     "express": "~4.16.1",
     "http-errors": "~1.6.3",
     "jsonwebtoken": "^9.0.2",
+    "lighthouse": "^11.7.1",
     "mongoose": "^8.2.0",
     "morgan": "~1.9.1",
     "node-cron": "^3.0.3",

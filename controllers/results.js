@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 
 const Result = require('../models/result');
 
-const commonTools = require('../utils/common');
+const commonTools = require('../utils/common.mjs');
 
 resultsRouter.get('/', async (request, response, next) => {
   try {

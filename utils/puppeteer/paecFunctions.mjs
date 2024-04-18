@@ -1,7 +1,22 @@
 const storage = {};
-const fs = require('fs');
-const tools = require('../common');
-const {
+import fs from 'fs';
+import * as tools from '../common.mjs';
+import lighthouse from 'lighthouse'; // Use import instead of require
+import { ReportGenerator } from 'lighthouse/report/generator/report-generator.js'; // Specify the path to report-generator
+
+// const {
+//     GREAT_SUCCESS,
+//     BROWSER_OPEN_FAIL,
+//     GENERAL_EXCEPTION,
+//     CONSOLE_PROBLEMS,
+//     PAGE_ERROR,
+//     REQUEST_FAILED,
+//     BAD_COMMAND,
+//     exitCodeStrings,
+//     typeStrings
+// } = require("../constants");
+
+import {
     GREAT_SUCCESS,
     BROWSER_OPEN_FAIL,
     GENERAL_EXCEPTION,
@@ -11,19 +26,25 @@ const {
     BAD_COMMAND,
     exitCodeStrings,
     typeStrings
-} = require("../constants");
+} from "../constants.js";
+
 
 let addProblemFunction = () => {
     console.log("The old addProblemFunction is being called!")
 };
 
-const executeAddProblemFunction = (...args) => {
+let browser;
+
+export const executeAddProblemFunction = (...args) => {
     addProblemFunction(...args);
 }
-function setAddProblemFunction(fn) {
+export function setAddProblemFunction(fn) {
     addProblemFunction = fn;
 }
-async function hookAudioPlayer(page) {
+export function setBrowserObject(browserObj) {
+    browser = browserObj;
+}
+export async function hookAudioPlayer(page) {
     try {
 
         const timeoutPromise = new Promise(resolve => setTimeout(() => {
@@ -76,7 +97,7 @@ function getOperand(inputData) {
     }
     return inputData;
 }
-async function compareGreaterEqual(args) {
+export async function compareGreaterEqual(args) {
 
     try {
 
@@ -103,7 +124,7 @@ async function compareGreaterEqual(args) {
     }
 
 }
-async function compareEqual(args) {
+export async function compareEqual(args) {
 
     try {
 
@@ -127,7 +148,7 @@ async function compareEqual(args) {
                 success: false,
                 data: {
                     name: 'compare-equal',
-                    value:{
+                    value: {
                         firstOperand,
                         secondOperand
                     }
@@ -141,7 +162,7 @@ async function compareEqual(args) {
     }
 
 }
-async function compareNotEqual(args) {
+export async function compareNotEqual(args) {
     try {
 
         let firstOperand, secondOperand;
@@ -166,7 +187,7 @@ async function compareNotEqual(args) {
         };
     }
 }
-async function getTextContent(page, args) {
+export async function getTextContent(page, args) {
     try {
 
         console.log('getTextContent');
@@ -214,7 +235,7 @@ async function getTextContent(page, args) {
         };
     }
 }
-async function getLinkHref(page, args) {
+export async function getLinkHref(page, args) {
     try {
 
         const variableName = args[0];
@@ -255,7 +276,7 @@ async function getLinkHref(page, args) {
         };
     }
 }
-async function performSearch(page, args) {
+export async function performSearch(page, args) {
     try {
         const searchString = args.join(' ');
         console.log('searchString->', searchString);
@@ -275,7 +296,7 @@ async function performSearch(page, args) {
         };
     }
 }
-async function saveDataInVariable(args) {
+export async function saveDataInVariable(args) {
     try {
         const variableName = args[0];
         const data = args.slice(1).join(' ');
@@ -308,7 +329,7 @@ async function saveDataInVariable(args) {
         };
     }
 }
-async function performNegativeSearch(page, args) {
+export async function performNegativeSearch(page, args) {
     try {
         const searchString = args.join(' ');
         await page.waitForSelector('body', { timeout: 10000 }); // Wait for the page to load
@@ -327,7 +348,7 @@ async function performNegativeSearch(page, args) {
         };
     }
 }
-async function performSearchInIframe(page, args) {
+export async function performSearchInIframe(page, args) {
     try {
 
         const iframeSelector = args[0];
@@ -371,7 +392,7 @@ async function performSearchInIframe(page, args) {
         };
     }
 }
-async function clearInput(page, args) {
+export async function clearInput(page, args) {
     try {
 
         const elementSelector = args[0];
@@ -401,7 +422,7 @@ async function clearInput(page, args) {
         };
     }
 }
-async function performSelect(page, args) {
+export async function performSelect(page, args) {
     try {
         await page.waitForSelector(args[0], {
             timeout: 5000,
@@ -430,7 +451,7 @@ async function performSelect(page, args) {
         };
     }
 }
-async function waitForSelector(page, args) {
+export async function waitForSelector(page, args) {
     try {
         const desiredSelector = args[0];
         await page.waitForSelector(desiredSelector, {
@@ -445,7 +466,7 @@ async function waitForSelector(page, args) {
         };
     }
 }
-async function waitForSelectorVisible(page, args) {
+export async function waitForSelectorVisible(page, args) {
     try {
         await page.waitForSelector(args[0], {
             timeout: 30000,
@@ -461,7 +482,7 @@ async function waitForSelectorVisible(page, args) {
         };
     }
 }
-async function waitForSelectorInIframe(page, args) {
+export async function waitForSelectorInIframe(page, args) {
     const iframeSelector = args[0];
 
     const objectSelector = args[1];
@@ -485,7 +506,7 @@ async function waitForSelectorInIframe(page, args) {
         };
     }
 }
-async function performType(page, args) {
+export async function performType(page, args) {
     try {
         const selector = args[0];
         const text = args.slice(1).join(' ');
@@ -505,7 +526,7 @@ async function performType(page, args) {
         };
     }
 }
-async function getCurrentUrl(page, args) {
+export async function getCurrentUrl(page, args) {
     try {
         const currentUrl = await page.evaluate(() => window.location.href);
         const dataLabel = args[0];
@@ -528,7 +549,33 @@ async function getCurrentUrl(page, args) {
         };
     }
 }
-async function takeSnapshot(page, jobData) {
+export async function generateLighthouseReport(page, args) {
+    try {
+
+        const { lhr } = await lighthouse(page.url(), { // Destructure lhr from the report
+            port: (new URL(browser.wsEndpoint())).port,
+            output: 'json',
+            logLevel: 'info',
+            disableDeviceEmulation: true,
+            chromeFlags: ['--disable-mobile-emulation']
+        });
+
+        const html = ReportGenerator.generateReport(lhr, 'html'); // Generate HTML report
+        fs.writeFileSync('report.html', html); // Write HTML report to file
+        console.log('HTML report generated.');
+
+        return {
+            success: true,
+        };
+    }
+    catch (error) {
+        console.log("getCurrentUrl error:", error);
+        return {
+            success: false,
+        };
+    }
+}
+export async function takeSnapshot(page, jobData) {
     try {
 
         const directory = './public/snapshots';
@@ -542,7 +589,8 @@ async function takeSnapshot(page, jobData) {
             console.log(`Directory '${directory}' already exists.`);
         }
 
-        const fileName = `screenshot-${jobData.id}.png`;
+        const fileName = `screenshot-${jobData.id}-${Date.now()}.png`;
+        console.log("Gonna create ", fileName);
         await page.screenshot({ path: `${directory}/${fileName}` });
         return {
             success: true,
@@ -558,7 +606,7 @@ async function takeSnapshot(page, jobData) {
         };
     }
 }
-async function checkAllImageTags(page, args) {
+export async function checkAllImageTags(page, args) {
     try {
 
         const imageElements = await page.$$eval('img', imgs => imgs.map(img => ({
@@ -591,7 +639,7 @@ async function checkAllImageTags(page, args) {
 
     }
 }
-async function checkImageTag(page, args) {
+export async function checkImageTag(page, args) {
     try {
         const desiredImagePath = args[0];
         const desiredImageTag = args.slice(1).join(' ');
@@ -639,7 +687,7 @@ async function checkImageTag(page, args) {
 
     }
 }
-async function getVideoDuration(page, args) {
+export async function getVideoDuration(page, args) {
     try {
 
         await page.waitForSelector('video');
@@ -672,7 +720,7 @@ async function getVideoDuration(page, args) {
 
     }
 }
-async function getVideoCurrentTime(page, args) {
+export async function getVideoCurrentTime(page, args) {
     try {
 
         await page.waitForSelector('video');
@@ -703,7 +751,7 @@ async function getVideoCurrentTime(page, args) {
         };
     }
 }
-async function getAttributeLang(page, args) {
+export async function getAttributeLang(page, args) {
     try {
 
         const dataLabel = args[0];
@@ -732,7 +780,7 @@ async function getAttributeLang(page, args) {
         };
     }
 }
-async function setVideoCurentTime(page, args) {
+export async function setVideoCurentTime(page, args) {
     try {
         let desiredTimeInSeconds;
 
@@ -765,7 +813,42 @@ async function setVideoCurentTime(page, args) {
         };
     }
 }
-async function videoPlay(page, jobData) {
+export async function setViewport(page, args) {
+    try {
+
+        // Small:
+        // 414x896
+
+        // Medium:
+        // 800x1280
+
+        // Large:
+        // 1920x1080
+
+        let viewportSize = getOperand(args[0]);
+
+        if (!viewportSize || viewportSize.length < 1) {
+            console.log("setViewport: You need to provide a viewport size.")
+            return {
+                success: false,
+                errorMessage: "You need to provide a variable name."
+            };
+        }
+        const viewportWidth = Number(viewportSize.split("x")[0]);
+        const viewportHeight = Number(viewportSize.split("x")[1]);
+        await page.setViewport({ width: viewportWidth, height: viewportHeight });
+
+        return {
+            success: true,
+        };
+    } catch (error) {
+        console.log("setVideoCurentTime error:", error);
+        return {
+            success: false,
+        };
+    }
+}
+export async function videoPlay(page, jobData) {
     try {
 
         await page.waitForSelector('video');
@@ -790,7 +873,7 @@ async function videoPlay(page, jobData) {
         };
     }
 }
-async function audioPlay(page) {
+export async function audioPlay(page) {
     try {
 
         await page.waitForSelector('audio');
@@ -815,7 +898,7 @@ async function audioPlay(page) {
         };
     }
 }
-async function performClick(page, args) {
+export async function performClick(page, args) {
     const selector = args.join(' ');
 
     try {
@@ -833,7 +916,7 @@ async function performClick(page, args) {
         };
     }
 }
-async function performScrollBottom(page) {
+export async function performScrollBottom(page) {
     try {
         await page.evaluate(() => {
             window.scrollTo(0, document.body.scrollHeight);
@@ -849,7 +932,7 @@ async function performScrollBottom(page) {
         };
     }
 }
-async function performEvalCheckBoxClick(page, args) {
+export async function performEvalCheckBoxClick(page, args) {
     try {
         const selector = args[0];
 
@@ -897,36 +980,39 @@ async function performEvalCheckBoxClick(page, args) {
     }
 }
 
-module.exports = {
-    hookAudioPlayer,
-    performEvalCheckBoxClick,
-    performScrollBottom,
-    performClick,
-    audioPlay,
-    videoPlay,
-    setVideoCurentTime,
-    getVideoCurrentTime,
-    getVideoDuration,
-    takeSnapshot,
-    getCurrentUrl,
-    performType,
-    waitForSelectorInIframe,
-    waitForSelectorVisible,
-    waitForSelector,
-    performSelect,
-    clearInput,
-    performSearchInIframe,
-    performNegativeSearch,
-    saveDataInVariable,
-    performSearch,
-    getLinkHref,
-    getTextContent,
-    compareNotEqual,
-    compareEqual,
-    compareGreaterEqual,
-    setAddProblemFunction,
-    executeAddProblemFunction,
-    checkAllImageTags,
-    checkImageTag,
-    getAttributeLang
-}
+// module.exports = {
+//     hookAudioPlayer,
+//     performEvalCheckBoxClick,
+//     performScrollBottom,
+//     performClick,
+//     audioPlay,
+//     videoPlay,
+//     setVideoCurentTime,
+//     getVideoCurrentTime,
+//     getVideoDuration,
+//     takeSnapshot,
+//     getCurrentUrl,
+//     performType,
+//     waitForSelectorInIframe,
+//     waitForSelectorVisible,
+//     waitForSelector,
+//     performSelect,
+//     clearInput,
+//     performSearchInIframe,
+//     performNegativeSearch,
+//     saveDataInVariable,
+//     performSearch,
+//     getLinkHref,
+//     getTextContent,
+//     compareNotEqual,
+//     compareEqual,
+//     compareGreaterEqual,
+//     setAddProblemFunction,
+//     executeAddProblemFunction,
+//     checkAllImageTags,
+//     checkImageTag,
+//     getAttributeLang,
+//     setViewport,
+//     generateLighthouseReport,
+//     setBrowserObject
+// }

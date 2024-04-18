@@ -1,6 +1,7 @@
-const express = require('express');
+// const express = require('express');
+import express from 'express';
 
-const app = express();
+export const app = express();
 
 const http = require('http').createServer();
 
@@ -17,9 +18,9 @@ const cors = require('cors');
 // eslint-disable-next-line import/no-extraneous-dependencies
 const mongoose = require('mongoose');
 
-const config = require('./utils/config');
+const config = require('./utils/config.mjs');
 
-const websocket = require('./utils/websocket');
+const websocket = require('./utils/websocket.mjs');
 
 const middleware = require('./utils/middleware');
 
@@ -45,8 +46,6 @@ app.use('/tests', testsRouter);
 app.use('/results', resultsRouter);
 app.use(middleware.unknownEndpoint);
 app.use(middleware.errorHandler);
-
-module.exports = app;
 
 io.on('connection', websocket.processIncomingRequest);
 

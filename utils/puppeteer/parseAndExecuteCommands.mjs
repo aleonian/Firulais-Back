@@ -1,5 +1,20 @@
-const tools = require('../common');
-const {
+// const tools = require('../common.mjs');
+
+import * as tools from '../common.mjs';
+
+// const {
+//     GREAT_SUCCESS,
+//     BROWSER_OPEN_FAIL,
+//     GENERAL_EXCEPTION,
+//     CONSOLE_PROBLEMS,
+//     PAGE_ERROR,
+//     REQUEST_FAILED,
+//     BAD_COMMAND,
+//     exitCodeStrings,
+//     typeStrings
+// } = require("../constants");
+
+import {
     GREAT_SUCCESS,
     BROWSER_OPEN_FAIL,
     GENERAL_EXCEPTION,
@@ -9,9 +24,43 @@ const {
     BAD_COMMAND,
     exitCodeStrings,
     typeStrings
-} = require("../constants");
+} from "../constants.js";
 
-const {
+// const {
+//     hookAudioPlayer,
+//     performEvalCheckBoxClick,
+//     performScrollBottom,
+//     performClick,
+//     audioPlay,
+//     videoPlay,
+//     setVideoCurentTime,
+//     getVideoCurrentTime,
+//     getVideoDuration,
+//     takeSnapshot,
+//     getCurrentUrl,
+//     performType,
+//     waitForSelectorInIframe,
+//     waitForSelectorVisible,
+//     waitForSelector,
+//     performSelect,
+//     clearInput,
+//     performSearchInIframe,
+//     performNegativeSearch,
+//     saveDataInVariable,
+//     performSearch,
+//     getLinkHref,
+//     getTextContent,
+//     compareNotEqual,
+//     compareEqual,
+//     compareGreaterEqual,
+//     executeAddProblemFunction,
+//     checkAllImageTags,
+//     checkImageTag,
+//     getAttributeLang,
+//     setViewport,
+//     generateLighthouseReport
+// } = require("./paecFunctions.mjs");
+import {
     hookAudioPlayer,
     performEvalCheckBoxClick,
     performScrollBottom,
@@ -41,11 +90,47 @@ const {
     executeAddProblemFunction,
     checkAllImageTags,
     checkImageTag,
-    getAttributeLang
-} = require("./paecFunctions");
+    getAttributeLang,
+    setViewport,
+    generateLighthouseReport
+} from "./paecFunctions.mjs";
+// const {
+//     hookAudioPlayer,
+//     performEvalCheckBoxClick,
+//     performScrollBottom,
+//     performClick,
+//     audioPlay,
+//     videoPlay,
+//     setVideoCurentTime,
+//     getVideoCurrentTime,
+//     getVideoDuration,
+//     takeSnapshot,
+//     getCurrentUrl,
+//     performType,
+//     waitForSelectorInIframe,
+//     waitForSelectorVisible,
+//     waitForSelector,
+//     performSelect,
+//     clearInput,
+//     performSearchInIframe,
+//     performNegativeSearch,
+//     saveDataInVariable,
+//     performSearch,
+//     getLinkHref,
+//     getTextContent,
+//     compareNotEqual,
+//     compareEqual,
+//     compareGreaterEqual,
+//     executeAddProblemFunction,
+//     checkAllImageTags,
+//     checkImageTag,
+//     getAttributeLang,
+//     setViewport,
+//     generateLighthouseReport
+// } = require("./paecFunctions.mjs");
 
 
-async function parseAndExecuteCommands(commandsString, page, jobData) {
+export async function parseAndExecuteCommands(commandsString, page, jobData) {
     const commands = commandsString.split('\n');
     const paecResult = {};
     paecResult.commandLogs = [];
@@ -70,6 +155,18 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
 
             case 'get-current-url':
                 result = await getCurrentUrl(page, args);
+                if (result.success === false) {
+                    commandLog.success = false;
+                    executeAddProblemFunction(
+                        typeStrings[BAD_COMMAND],
+                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+                    );
+                }
+                paecResult.commandLogs.push(commandLog);
+                break;
+
+            case 'generate-lighthouse-report':
+                result = await generateLighthouseReport(page, args);
                 if (result.success === false) {
                     commandLog.success = false;
                     executeAddProblemFunction(
@@ -171,6 +268,20 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
 
             case 'set-video-current-time':
                 result = await setVideoCurentTime(page, args);
+                if (result.success === false) {
+                    commandLog.success = false;
+                    executeAddProblemFunction(
+                        typeStrings[BAD_COMMAND],
+                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+                    );
+                }
+                //some of these commands return data to be saved on the test report for this job
+                if (result.data) commandLog.data = result.data;
+                paecResult.commandLogs.push(commandLog);
+                break;
+
+            case 'set-viewport':
+                result = await setViewport(page, args);
                 if (result.success === false) {
                     commandLog.success = false;
                     executeAddProblemFunction(
@@ -449,5 +560,3 @@ async function parseAndExecuteCommands(commandsString, page, jobData) {
     }
     return paecResult;
 }
-
-module.exports = { parseAndExecuteCommands };

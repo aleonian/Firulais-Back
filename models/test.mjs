@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const testChema = new mongoose.Schema({
   name: {
@@ -33,4 +33,5 @@ testChema.set('toJSON', {
   },
 });
 
-module.exports = mongoose.model('Test', testChema);
+// module.exports = mongoose.model('Test', testChema);
+export const Test = mongoose.model('Test', testChema);

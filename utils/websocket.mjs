@@ -1,7 +1,7 @@
 /* eslint-disable import/prefer-default-export */
 const frontEndConnections = [];
 
-const processIncomingRequest = (socket) => {
+export const processIncomingRequest = (socket) => {
   console.log('Client connected');
 
   frontEndConnections.push(socket);
@@ -11,13 +11,13 @@ const processIncomingRequest = (socket) => {
   });
 };
 
-const emit = (data) => {
+export const emit = (data) => {
   // Simulate task status changes
   frontEndConnections.forEach((frontEndConnection) => {
     frontEndConnection.emit('taskStatus', data);
   });
 };
 
-module.exports = {
-  processIncomingRequest, emit,
-};
+// module.exports = {
+//   processIncomingRequest, emit,
+// };

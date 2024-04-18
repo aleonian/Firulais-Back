@@ -8,7 +8,7 @@ const loginRouter = require('express').Router();
 
 const User = require('../models/user');
 
-const commonTools = require('../utils/common');
+const commonTools = require('../utils/common.mjs');
 
 loginRouter.post('/', async (request, response, next) => {
   const { username, password } = request.body;

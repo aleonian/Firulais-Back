@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const queueSchema = new mongoose.Schema({
   testId: {
@@ -15,4 +15,6 @@ queueSchema.set('toJSON', {
   },
 });
 
-module.exports = mongoose.model('Queue', queueSchema);
+// module.exports = mongoose.model('Queue', queueSchema);
+
+export const Queue = mongoose.model('Queue', queueSchema);

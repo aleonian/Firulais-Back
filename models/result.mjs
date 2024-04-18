@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const resultSchema = new mongoose.Schema({
   when: {
@@ -24,4 +24,6 @@ resultSchema.set('toJSON', {
   },
 });
 
-module.exports = mongoose.model('Result', resultSchema);
+// module.exports = mongoose.model('Result', resultSchema);
+export const Result = mongoose.model('Result', resultSchema);
+
