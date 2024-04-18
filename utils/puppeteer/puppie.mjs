@@ -22,7 +22,6 @@ import { Result } from '../../models/result.mjs';
 
 import { emit } from '../websocket.mjs';
 
-
 import { parseAndExecuteCommands } from "./parseAndExecuteCommands.mjs";
 
 import { setAddProblemFunction, setBrowserObject } from './paecFunctions.mjs';
@@ -167,6 +166,15 @@ async function goFetch(jobData) {
         const action = actions[i];
         const { commands } = action;
         const paecResult = await parseAndExecuteCommands(commands, page, jobData);
+        //gotta check each commandLog and if they have data and it's a file,\
+        //i gotta store that in the files array for this result so its easier to delete
+        //when this result has to be deleted in the future
+        paecResult.commandLogs.forEach(commandLog => {
+          if (commandLog.data && commandLog.data.type && commandLog.data.type == "file") {
+            if (!responseObject.files) responseObject.files = [];
+            responseObject.files.push(commandLog.data.value)
+          }
+        })
         console.log('paecResult->', JSON.stringify(paecResult));
         console.log('action.name->', action.name);
         responseObject.actions[action.name] = paecResult;

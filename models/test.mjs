@@ -10,6 +10,9 @@ const testChema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  requiresAuth: {
+    type: Boolean,
+  },
   authUser: {
     type: String,
   },

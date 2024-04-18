@@ -616,7 +616,8 @@ export async function generateLighthouseReport(page, jobData) {
             success: true,
             data: {
                 name: 'generate-lighthouse-report',
-                value: fileName
+                value: fileName,
+                type: "file"
             }
         };
     }
@@ -648,7 +649,8 @@ export async function takeSnapshot(page, jobData) {
             success: true,
             data: {
                 name: 'take-pic',
-                value: fileName
+                value: fileName,
+                type: "file"
             }
         };
     } catch (error) {

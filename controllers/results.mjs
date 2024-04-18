@@ -8,6 +8,8 @@ import { Result } from '../models/result.mjs';
 
 import * as commonTools from '../utils/common.mjs';
 
+import fs from 'fs';
+import path from 'path';
 
 resultsRouter.get('/', async (request, response, next) => {
   try {
@@ -32,6 +34,17 @@ resultsRouter.delete('/:id', async (request, response, next) => {
   }
 
   try {
+
+    // TODO: delete the files (snapshots or reports) for this result
+    const toBeDeletedDocument = await Result.findById(objectId);
+    toBeDeletedDocument.outcome.files.forEach(file => {
+      if (file.endsWith("html")) {
+        fs.unlinkSync(path.resolve(__dirname, "../public/reports/" + file));
+      }
+      else if (file.endsWith("png")) {
+        fs.unlinkSync(path.resolve(__dirname, "../public/snapshots/" + file));
+      }
+    })
     const deletedDocument = await Result.findByIdAndDelete(objectId);
 
     if (deletedDocument) {
