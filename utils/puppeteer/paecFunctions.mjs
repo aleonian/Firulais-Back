@@ -644,7 +644,7 @@ export async function takeSnapshot(page, jobData) {
 
         const fileName = `screenshot-${jobData.id}-${Date.now()}.png`;
         console.log("Gonna create ", fileName);
-        await page.screenshot({ path: `${directory}/${fileName}` });
+        await page.screenshot({ path: `${directory}/${fileName}`, fullPage: true });
         return {
             success: true,
             data: {
@@ -978,6 +978,21 @@ export async function resetAudioPlayer(page) {
         };
     }
 }
+export async function pageReload(page) {
+    try {
+        await page.reload({ waitUntil: 'networkidle0', ignoreCache: true });
+        return {
+            success: true,
+        };
+    }
+    catch (error) {
+        console.log("pageReload error:", error);
+        return {
+            success: false,
+        };
+    }
+}
+
 export async function getLoadTime(page, args) {
     try {
 

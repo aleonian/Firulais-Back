@@ -47,7 +47,8 @@ import {
     setViewport,
     generateLighthouseReport,
     resetAudioPlayer,
-    getLoadTime
+    getLoadTime,
+    pageReload
 } from "./paecFunctions.mjs";
 
 export async function parseAndExecuteCommands(commandsString, page, jobData) {
@@ -71,6 +72,16 @@ export async function parseAndExecuteCommands(commandsString, page, jobData) {
                 await page.goto(args[0]);
                 paecResult.commandLogs.push(commandLog);
                 break;
+            case 'page-reload':
+                result = await pageReload(page);
+                if (result.success === false) {
+                    commandLog.success = false;
+                    executeAddProblemFunction(
+                        typeStrings[BAD_COMMAND],
+                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+                    );
+                }
+                paecResult.commandLogs.push(commandLog); break;
 
             case 'get-current-url':
                 result = await getCurrentUrl(page, args);

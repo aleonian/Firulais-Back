@@ -51,6 +51,8 @@ import { indexRouter } from './controllers/index.mjs';
 
 import { resultsRouter } from './controllers/results.mjs';
 
+import { dummyRouter } from './controllers/dummy.mjs';
+
 
 mongoose.connect(mongoUrl);
 
@@ -59,11 +61,10 @@ app.use(express.json());
 app.use(express.static('public'));
 app.use('/', indexRouter);
 app.use('/login', loginRouter);
-app.use(middleware.tokenExtractor);
-app.use(middleware.userExtractor);
-app.use('/users', usersRouter);
-app.use('/tests', testRouter);
-app.use('/results', resultsRouter);
+app.use('/dummy', dummyRouter);
+app.use('/users', middleware.tokenExtractor, middleware.userExtractor, usersRouter);
+app.use('/tests', middleware.tokenExtractor, middleware.userExtractor, testRouter);
+app.use('/results', middleware.tokenExtractor, middleware.userExtractor, resultsRouter);
 app.use(middleware.unknownEndpoint);
 app.use(middleware.errorHandler);
 
