@@ -1048,6 +1048,33 @@ export async function performClick(page, args) {
         };
     }
 }
+export async function zoom(page, args) {
+
+    const howMuch = args[0];
+
+    if (!howMuch || howMuch.length < 1) {
+        console.log("zoom: You need to provide a value.")
+        return {
+            success: false,
+            errorMessage: "You need to provide a value."
+        };
+    }
+    try {
+        await page.evaluate((zoomLevel) => {document.body.style.zoom = zoomLevel}, howMuch );
+
+        // await page.evaluate((zoom) => {
+        //     document.body.style.zoom = zoom;
+        //   }, zoomLevel);
+
+        return {
+            success: true,
+        };
+    } catch (error) {
+        return {
+            success: false,
+        };
+    }
+}
 export async function performScrollBottom(page) {
     try {
         await page.evaluate(() => {

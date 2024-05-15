@@ -70,6 +70,7 @@ function addProblem(problemType, errorMessage) {
 async function goFetch(jobData) {
   try {
     const browser = await puppeteer.launch(pupConfig);
+    
     setBrowserObject(browser);
     if (!browser) {
       responseObject = {
@@ -86,6 +87,12 @@ async function goFetch(jobData) {
       actions: {},
     };
     const page = await browser.newPage();
+
+    // await page.setViewport({
+    //   width: 800, // Set a small width
+    //   height: 600, // Set a small height
+    //   deviceScaleFactor: 0.75, // Set the scale factor to 75%
+    // });
 
     // This allegedly detects redirects 
     // const redirects = [];

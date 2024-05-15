@@ -48,7 +48,8 @@ import {
     generateLighthouseReport,
     resetAudioPlayer,
     getLoadTime,
-    pageReload
+    pageReload,
+    zoom
 } from "./paecFunctions.mjs";
 
 export async function parseAndExecuteCommands(commandsString, page, jobData) {
@@ -81,7 +82,20 @@ export async function parseAndExecuteCommands(commandsString, page, jobData) {
                         `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
                     );
                 }
-                paecResult.commandLogs.push(commandLog); break;
+                paecResult.commandLogs.push(commandLog);
+                break;
+
+            case 'zoom':
+                result = await zoom(page, args);
+                if (result.success === false) {
+                    commandLog.success = false;
+                    executeAddProblemFunction(
+                        typeStrings[BAD_COMMAND],
+                        `${exitCodeStrings[BAD_COMMAND]} ${commandLog.command}`,
+                    );
+                }
+                paecResult.commandLogs.push(commandLog);
+                break;
 
             case 'get-current-url':
                 result = await getCurrentUrl(page, args);
